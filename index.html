@@ -3,52 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Professional Messenger</title>
+    <title>Messenger Pro</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
     <div id="auth-container" class="auth-card">
-        <h2>Messenger</h2>
-        <input type="text" id="regName" placeholder="Full Name">
-        <input type="email" id="regEmail" placeholder="Gmail Address">
-        <input type="tel" id="regPhone" placeholder="Phone Number (ID)">
-        <input type="password" id="regPass" placeholder="Password">
-        <button id="authBtn">Start Chatting</button>
+        <h1 class="logo">messenger</h1>
+        <div class="auth-inputs">
+            <input type="text" id="userVal" placeholder="Email or phone number">
+            <input type="password" id="userPass" placeholder="Password">
+        </div>
+        <button id="authBtn">Log In</button>
+        <p class="auth-footer">Meta</p>
     </div>
 
-    <div id="chat-interface" style="display:none;">
-        <div class="sidebar">
-            <div class="header">
-                <img id="myPic" src="" class="nav-avatar">
-                <h3 id="myName">User</h3>
-                <button id="logoutBtn">Logout</button>
+    <div id="messenger-app" style="display:none;">
+        
+        <div id="chat-list-page">
+            <div class="app-header">
+                <div class="header-left">
+                    <img id="myPic" class="top-avatar">
+                    <h2>Chats</h2>
+                </div>
+                <div class="header-icons">
+                    <i class="fas fa-camera"></i>
+                    <i class="fas fa-sign-out-alt" id="logoutBtn"></i>
+                </div>
             </div>
-            <div id="users-list"></div>
-            <div class="footer-settings">
-                <button onclick="document.getElementById('edit-modal').style.display='flex'">Settings</button>
+
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search">
             </div>
+
+            <div id="active-users-bar" class="story-section"></div>
+            <div id="users-list" class="chat-list-section"></div>
         </div>
 
-        <div class="chat-area">
-            <div id="chat-header">Select a friend to chat</div>
+        <div id="inbox-page" style="display:none;">
+            <div class="inbox-header">
+                <i class="fas fa-arrow-left" id="backBtn"></i>
+                <img id="partnerPic" class="avatar-sm">
+                <div class="partner-meta">
+                    <b id="partnerName">Name</b>
+                    <span>Active now</span>
+                </div>
+                <div class="inbox-icons">
+                    <i class="fas fa-phone"></i>
+                    <i class="fas fa-video"></i>
+                    <i class="fas fa-info-circle"></i>
+                </div>
+            </div>
+
             <div id="chat-box"></div>
-            <div id="typing-text" style="padding-left: 20px; font-size: 12px; color: #42b72a; height: 15px;"></div>
-            <div class="input-area" id="input-section" style="display:none;">
-                <input type="text" id="messageInput" placeholder="Type a message...">
-                <button id="sendBtn">Send</button>
-            </div>
-        </div>
-    </div>
 
-    <div id="edit-modal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <h3>Update Profile</h3>
-            <input type="text" id="newName" placeholder="New Name">
-            <input type="text" id="newPic" placeholder="New Photo URL">
-            <button id="updateBtn">Update</button>
-            <button id="deleteBtn" style="background:red;">Delete Account</button>
-            <button onclick="this.parentElement.parentElement.style.display='none'">Close</button>
+            <div class="inbox-footer">
+                <i class="fas fa-plus-circle"></i>
+                <div class="input-wrap">
+                    <input type="text" id="messageInput" placeholder="Message">
+                    <i class="far fa-smile"></i>
+                </div>
+                <i class="fas fa-thumbs-up" id="sendBtn"></i>
+            </div>
         </div>
     </div>
 
