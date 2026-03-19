@@ -10,13 +10,20 @@
 <body>
 
     <div id="auth-container" class="auth-card">
-        <h1 id="app-title">Chatting App</h1>
-        <div id="reg-fields">
-            <input type="text" id="regName" placeholder="Full Name">
-            <input type="text" id="regGmail" placeholder="Gmail Address">
-            <input type="text" id="regPhone" placeholder="Phone Number (ID)">
+        <div id="login-form">
+            <h1 class="app-logo">Chatting App</h1>
+            <input type="text" id="loginUser" placeholder="Username">
+            <input type="password" id="loginPass" placeholder="Password">
+            <button id="loginBtn">Log In</button>
+            <p class="toggle-txt">Don't have an account? <span id="showReg">Register</span></p>
+        </div>
+
+        <div id="reg-form" style="display:none;">
+            <h1 class="app-logo">Create Account</h1>
+            <input type="text" id="regId" placeholder="Email or phone number">
             <input type="password" id="regPass" placeholder="Password">
-            <button id="startBtn">Start Chatting</button>
+            <button id="regBtn">Register</button>
+            <p class="toggle-txt">Already have an account? <span id="showLogin">Log In</span></p>
         </div>
     </div>
 
@@ -28,6 +35,7 @@
                     <h2>Chats</h2>
                     <div class="header-btns">
                         <i class="fas fa-pen" id="editProfileBtn"></i>
+                        <i class="fas fa-sign-out-alt" id="logoutBtn" style="margin-left: 15px;"></i>
                     </div>
                 </div>
                 <div class="search-bar">
@@ -36,12 +44,11 @@
                 </div>
             </div>
             
-            <div id="active-bar" class="active-users"></div>
             <div id="users-list" class="conversations"></div>
 
             <div class="bottom-nav">
                 <div class="nav-item active"><i class="fas fa-comment"></i><span>Chats</span></div>
-                <div class="nav-item" id="notif-nav">
+                <div class="nav-item">
                     <i class="fas fa-bell"></i>
                     <span id="notif-dot" class="red-dot" style="display:none;"></span>
                     <span>Notifications</span>
@@ -53,16 +60,11 @@
             <div class="inbox-header">
                 <i class="fas fa-arrow-left" id="backBtn"></i>
                 <img id="pPic" class="avatar-sm">
-                <div class="p-info">
-                    <b id="pName">Name</b>
-                    <span>Active now</span>
-                </div>
+                <div class="p-info"><b id="pName">Name</b><span>Active now</span></div>
             </div>
             <div id="chat-box"></div>
             <div class="inbox-footer">
-                <div class="input-wrap">
-                    <input type="text" id="messageInput" placeholder="Message">
-                </div>
+                <div class="input-wrap"><input type="text" id="messageInput" placeholder="Message"></div>
                 <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
@@ -71,10 +73,10 @@
     <div id="edit-modal" class="modal" style="display:none;">
         <div class="modal-content">
             <h3>Edit Profile</h3>
-            <input type="text" id="editName" placeholder="New Name">
-            <input type="text" id="editPic" placeholder="New Profile Image URL">
+            <input type="text" id="editName" placeholder="New Username">
+            <input type="text" id="editPic" placeholder="Profile Image URL">
             <button id="saveProfileBtn">Save</button>
-            <button id="closeModal">Cancel</button>
+            <button onclick="document.getElementById('edit-modal').style.display='none'">Cancel</button>
         </div>
     </div>
 
