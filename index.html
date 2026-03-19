@@ -3,34 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Chat App1.0</title>
+    <title>My Messenger Clone</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="auth-container">
-        <h2>Register / Login</h2>
-        <input type="text" id="username" placeholder="Username">
-        <input type="email" id="email" placeholder="Gmail">
-        <input type="tel" id="phone" placeholder="Phone Number">
-        <input type="password" id="password" placeholder="Password">
-        <button id="registerBtn">Register & Login</button>
+    <div id="auth-container" class="card">
+        <h2>Messenger Login</h2>
+        <input type="text" id="regName" placeholder="Full Name">
+        <input type="email" id="regEmail" placeholder="Gmail">
+        <input type="tel" id="regPhone" placeholder="Phone Number">
+        <input type="password" id="regPass" placeholder="Password">
+        <button id="authBtn">Login / Register</button>
     </div>
 
-    <div id="chat-container" style="display:none;">
-        <h2 id="welcome-user">Welcome</h2>
-        
-        <div id="search-section">
-            <input type="text" id="searchUser" placeholder="Search by Phone/Gmail">
-            <button id="searchBtn">Find User</button>
+    <div id="chat-interface" style="display:none;">
+        <div class="sidebar">
+            <div class="user-profile-header">
+                <img id="myPic" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" width="40">
+                <h3 id="myName">User</h3>
+                <button id="logoutBtn">Logout</button>
+            </div>
+            
+            <div id="users-list-title">Active Chats</div>
+            <div id="users-list"></div>
+
+            <div class="settings-menu">
+                <button onclick="document.getElementById('edit-modal').style.display='block'">Settings</button>
+            </div>
         </div>
 
-        <div id="chat-box">
+        <div class="chat-area">
+            <div id="chat-header">Select a person to start chat</div>
+            <div id="chat-box"></div>
+            <div class="input-container" id="message-input-area" style="display:none;">
+                <input type="text" id="messageInput" placeholder="Aa">
+                <button id="sendBtn">Send</button>
             </div>
+        </div>
+    </div>
 
-        <div id="input-area">
-            <input type="text" id="messageInput" placeholder="Type a message...">
-            <button id="sendBtn">Send</button>
+    <div id="edit-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>Update Profile</h3>
+            <input type="text" id="newName" placeholder="New Name">
+            <input type="text" id="newPic" placeholder="New Photo URL">
+            <button id="updateBtn">Update</button>
+            <button id="deleteBtn" style="background:red;">Delete Account</button>
+            <button onclick="this.parentElement.parentElement.style.display='none'">Close</button>
         </div>
     </div>
 
