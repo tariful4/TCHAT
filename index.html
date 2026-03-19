@@ -3,67 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Chat App</title>
+    <title>TARIFUL 2.0</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* CSS অংশ */
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-        body { background: #f0f2f5; height: 100vh; overflow: hidden; }
+        /* CSS অংশ - আপনার ফটো অনুযায়ী ডিজাইন */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background: #000; color: white; height: 100vh; overflow: hidden; }
 
-        /* Auth Card */
-        .auth-card { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px; }
-        .app-logo { font-size: 30px; margin-bottom: 20px; font-weight: bold; color: #0084ff; }
-        input { width: 100%; max-width: 350px; padding: 14px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
-        button { width: 100%; max-width: 350px; padding: 14px; background: #0084ff; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .toggle-txt { margin-top: 15px; font-size: 14px; }
-        .toggle-txt span { color: #0084ff; font-weight: bold; cursor: pointer; }
+        /* ১. লগইন পেজ ডিজাইন (Photo 81) */
+        #auth-container { display: flex; align-items: center; justify-content: center; height: 100vh; background: #000; }
+        .auth-card { background: #1c1410; padding: 40px 30px; border-radius: 40px; width: 90%; max-width: 380px; text-align: center; }
+        .app-logo { font-size: 28px; margin-bottom: 30px; color: #fff; font-weight: bold; }
+        .auth-card input { width: 100%; padding: 18px; margin-bottom: 15px; background: transparent; border: 1px solid #3d2b24; border-radius: 15px; color: white; outline: none; font-size: 16px; }
+        .auth-card button { width: 100%; padding: 18px; background: #8c442c; color: white; border: none; border-radius: 18px; font-weight: bold; cursor: pointer; font-size: 18px; }
+        .toggle-txt { margin-top: 20px; color: #f5d020; cursor: pointer; font-weight: 500; }
+        .forgot-pw { color: #8c442c; font-size: 14px; margin-top: 15px; display: block; text-decoration: none; }
 
-        /* Main Interface */
-        .header { padding: 15px; background: white; border-bottom: 1px solid #eee; }
+        /* ২. চ্যাট লিস্ট পেজ (Photo 82) */
+        .header { padding: 15px; background: #000; border-bottom: 1px solid #111; position: sticky; top: 0; }
         .header-top { display: flex; align-items: center; justify-content: space-between; }
-        .top-avatar { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; }
-        .search-bar { background: #f0f0f0; padding: 10px; border-radius: 20px; display: flex; margin-top: 10px; align-items: center; }
-        .search-bar input { background: transparent; border: none; padding: 0 10px; margin: 0; width: 100%; }
+        .top-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; }
+        .conversations { height: calc(100vh - 130px); overflow-y: auto; }
+        .chat-item { display: flex; align-items: center; padding: 15px; cursor: pointer; }
+        .chat-item img { width: 60px; height: 60px; border-radius: 50%; margin-right: 15px; border: 1px solid #222; }
+        .chat-info { flex: 1; }
+        .chat-info h4 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+        .chat-info p { font-size: 14px; color: #aaa; }
 
-        /* User List */
-        .conversations { height: calc(100vh - 180px); overflow-y: auto; background: white; }
-        .chat-item { display: flex; align-items: center; padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f9f9f9; }
-        .chat-item img { width: 55px; height: 55px; border-radius: 50%; margin-right: 15px; }
-
-        /* Inbox */
-        #chat-box { height: calc(100vh - 140px); overflow-y: auto; padding: 15px; display: flex; flex-direction: column; background: white; }
-        .msg { max-width: 75%; padding: 10px 15px; border-radius: 18px; margin-bottom: 5px; font-size: 15px; }
+        /* ৩. ইনবক্স পেজ (Photo 84) */
+        #chat-box { height: calc(100vh - 135px); overflow-y: auto; padding: 15px; display: flex; flex-direction: column; background: #000; }
+        .msg { max-width: 75%; padding: 10px 16px; border-radius: 20px; margin-bottom: 5px; font-size: 15px; line-height: 1.4; }
         .sent { align-self: flex-end; background: #0084ff; color: white; }
-        .received { align-self: flex-start; background: #e4e6eb; color: black; }
+        .received { align-self: flex-start; background: #333; color: white; }
+        .msg-img { width: 28px; height: 28px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
 
-        /* Red Dot */
-        .red-dot { width: 10px; height: 10px; background: red; border-radius: 50%; position: absolute; top: 0; right: 20px; border: 2px solid white; }
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; display: flex; justify-content: space-around; padding: 12px; background: white; border-top: 1px solid #eee; }
-        .nav-item { position: relative; text-align: center; color: #888; font-size: 12px; flex: 1; }
-        .nav-item.active { color: #0084ff; }
+        /* চ্যাট ইনপুট এরিয়া */
+        .chat-footer { display: flex; align-items: center; padding: 10px; background: #000; }
+        .footer-icons { display: flex; gap: 18px; margin-right: 12px; color: #0084ff; font-size: 20px; }
+        #messageInput { flex: 1; background: #1a1a1a; border: none; padding: 12px 18px; border-radius: 25px; color: white; outline: none; }
+        #sendBtn { background: transparent; border: none; color: #0084ff; font-size: 22px; margin-left: 10px; cursor: pointer; }
 
-        /* Modal */
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 85%; text-align: center; }
+        /* ৪. সেটিং/এডিট প্রোফাইল মোডাল */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: #1a1a1a; padding: 30px; border-radius: 25px; width: 85%; max-width: 350px; text-align: center; border: 1px solid #333; }
+        .modal-content input { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #444; color: white; border-radius: 10px; }
+        .modal-btn { padding: 12px 20px; width: 100%; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div id="auth-container">
         <div id="login-form" class="auth-card">
-            <h1 class="app-logo">Chat App</h1>
+            <h1 class="app-logo">TARIFUL 2.0</h1>
             <input type="text" id="loginUser" placeholder="Username">
             <input type="password" id="loginPass" placeholder="Password">
-            <button id="loginBtn">Log In</button>
-            <p class="toggle-txt">No account? <span onclick="toggleAuth(true)">Register</span></p>
+            <button id="loginBtn">Login</button>
+            <p class="toggle-txt" onclick="toggleAuth(true)">New User? Register</p>
+            <a href="#" class="forgot-pw">Forgot Password?</a>
         </div>
 
         <div id="reg-form" class="auth-card" style="display:none;">
-            <h1 class="app-logo">Create Account</h1>
-            <input type="text" id="regId" placeholder="Email or phone number">
-            <input type="password" id="regPass" placeholder="Password">
+            <h1 class="app-logo">Register</h1>
+            <input type="text" id="regName" placeholder="Full Name">
+            <input type="password" id="regPass" placeholder="Set Password">
             <button id="regBtn">Register</button>
-            <p class="toggle-txt">Have account? <span onclick="toggleAuth(false)">Log In</span></p>
+            <p class="toggle-txt" onclick="toggleAuth(false)">Have account? Log In</p>
         </div>
     </div>
 
@@ -71,43 +75,54 @@
         <div id="chat-list-page">
             <div class="header">
                 <div class="header-top">
-                    <img id="myPic" class="top-avatar" src="">
-                    <h2 id="myDisplay">Chats</h2>
-                    <div>
-                        <i class="fas fa-pen" onclick="openEdit()"></i>
-                        <i class="fas fa-sign-out-alt" id="logoutBtn" style="margin-left:15px;"></i>
-                    </div>
+                    <img id="myPic" class="top-avatar" src="" onclick="openSettings()">
+                    <h2 style="flex:1; margin-left:15px; font-size:24px;">Chats</h2>
+                    <i class="fas fa-camera" style="font-size: 20px;"></i>
                 </div>
-                <div class="search-bar"><i class="fas fa-search"></i><input type="text" placeholder="Search"></div>
+                <div style="background:#1a1a1a; padding:10px; border-radius:20px; margin-top:15px; display:flex; align-items:center;">
+                    <i class="fas fa-search" style="color:#555; margin-right:10px;"></i>
+                    <input type="text" placeholder="Search" style="background:transparent; border:none; color:white; outline:none; width:100%;">
+                </div>
             </div>
             <div id="users-list" class="conversations"></div>
-            <div class="bottom-nav">
-                <div class="nav-item active"><i class="fas fa-comment"></i><br>Chats</div>
-                <div class="nav-item"><span id="notif-dot" class="red-dot" style="display:none;"></span><i class="fas fa-bell"></i><br>Notif</div>
-            </div>
         </div>
 
         <div id="inbox-page" style="display:none;">
             <div class="header" style="display:flex; align-items:center;">
-                <i class="fas fa-arrow-left" onclick="closeInbox()"></i>
-                <img id="pPic" class="top-avatar" style="margin: 0 10px; width:35px; height:35px;">
-                <b id="pName">Name</b>
+                <i class="fas fa-arrow-left" onclick="closeInbox()" style="color:#0084ff; font-size:20px; padding:5px;"></i>
+                <img id="pPic" class="top-avatar" style="margin: 0 12px; width:35px; height:35px;">
+                <div style="flex:1">
+                    <b id="pName" style="font-size:16px;">Name</b><br>
+                    <span style="font-size:11px; color: #888;">Active 29m ago</span>
+                </div>
+                <div style="color:#0084ff; font-size:18px; display:flex; gap:20px;">
+                    <i class="fas fa-phone"></i>
+                    <i class="fas fa-video"></i>
+                    <i class="fas fa-info-circle"></i>
+                </div>
             </div>
             <div id="chat-box"></div>
-            <div class="header" style="display:flex; padding:10px;">
-                <input type="text" id="messageInput" placeholder="Message" style="margin:0; flex:1;">
-                <button id="sendBtn" style="width:60px; margin-left:10px;"><i class="fas fa-paper-plane"></i></button>
+            <div class="chat-footer">
+                <div class="footer-icons">
+                    <i class="fas fa-plus-circle"></i>
+                    <i class="fas fa-camera"></i>
+                    <i class="fas fa-image"></i>
+                    <i class="fas fa-microphone"></i>
+                </div>
+                <input type="text" id="messageInput" placeholder="Aa">
+                <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
     </div>
 
-    <div id="edit-modal" class="modal" style="display:none;">
+    <div id="settings-modal" class="modal">
         <div class="modal-content">
-            <h3>Edit Profile</h3><br>
-            <input type="text" id="editName" placeholder="New Username"><br>
-            <input type="text" id="editPic" placeholder="New Profile Image URL"><br>
-            <button id="saveProfileBtn">Save</button>
-            <button onclick="document.getElementById('edit-modal').style.display='none'" style="background:gray; margin-top:5px;">Cancel</button>
+            <h3 style="margin-bottom:15px;">Edit Profile</h3>
+            <input type="text" id="editName" placeholder="New Name">
+            <input type="text" id="editPic" placeholder="New Profile Image URL">
+            <button class="modal-btn" style="background:#0084ff; color:white;" id="saveProfileBtn">Save Changes</button>
+            <button class="modal-btn" style="background:#333; color:white;" onclick="closeSettings()">Cancel</button>
+            <button class="modal-btn" style="background:#8c442c; color:white; margin-top:20px;" id="logoutBtn">Logout</button>
         </div>
     </div>
 
@@ -129,32 +144,30 @@
         const db = getDatabase(app);
         let currentUser = null, currentChatId = null;
 
-        // অথ টগল
         window.toggleAuth = (isReg) => {
             document.getElementById('login-form').style.display = isReg ? 'none' : 'flex';
             document.getElementById('reg-form').style.display = isReg ? 'flex' : 'none';
         }
 
-        // রেজিস্ট্রেশন
         document.getElementById('regBtn').onclick = async () => {
-            const id = document.getElementById('regId').value;
+            const name = document.getElementById('regName').value;
             const pass = document.getElementById('regPass').value;
-            if(!id || !pass) return alert("Empty fields!");
-            const dbId = id.replace(/[^a-zA-Z0-9]/g, "");
-            await set(ref(db, 'users/' + dbId), { id: dbId, username: id.split('@')[0], password: pass, profilePic: "https://cdn-icons-png.flaticon.com/512/149/149071.png" });
-            alert("Done! Now Log In."); location.reload();
+            if(!name || !pass) return alert("Fill all fields!");
+            const dbId = name.toLowerCase().replace(/\s/g, "") + Math.floor(Math.random() * 1000);
+            await set(ref(db, 'users/' + dbId), { id: dbId, username: name, password: pass, profilePic: "https://cdn-icons-png.flaticon.com/512/149/149071.png" });
+            alert("Registered! Now Login."); toggleAuth(false);
         };
 
-        // লগইন
         document.getElementById('loginBtn').onclick = async () => {
             const user = document.getElementById('loginUser').value;
             const pass = document.getElementById('loginPass').value;
             const snap = await get(ref(db, 'users/'));
+            let found = false;
             snap.forEach(c => {
                 const u = c.val();
-                if(u.username === user && u.password === pass) currentUser = u;
+                if(u.username === user && u.password === pass) { currentUser = u; found = true; }
             });
-            if(currentUser) startApp(); else alert("Wrong!");
+            if(found) startApp(); else alert("Invalid username or password!");
         };
 
         function startApp() {
@@ -174,7 +187,7 @@
                     if(u.id !== currentUser.id) {
                         const item = document.createElement('div');
                         item.className = 'chat-item';
-                        item.innerHTML = `<img src="${u.profilePic}"><b>${u.username}</b>`;
+                        item.innerHTML = `<img src="${u.profilePic}"><div class="chat-info"><h4>${u.username}</h4><p>Active 10m ago</p></div>`;
                         item.onclick = () => openInbox(u.id, u.username, u.profilePic);
                         list.appendChild(item);
                     }
@@ -187,13 +200,17 @@
             document.getElementById('inbox-page').style.display = 'block';
             document.getElementById('pName').innerText = name;
             document.getElementById('pPic').src = pic;
-            document.getElementById('notif-dot').style.display = 'none';
             currentChatId = [currentUser.id, id].sort().join("_");
             onValue(ref(db, 'chats/' + currentChatId), (snap) => {
                 const box = document.getElementById('chat-box'); box.innerHTML = "";
                 snap.forEach(m => {
                     const d = m.val();
-                    box.innerHTML += `<div class="msg ${d.s === currentUser.id ? 'sent' : 'received'}">${d.t}</div>`;
+                    const isSent = d.s === currentUser.id;
+                    box.innerHTML += `
+                        <div style="display:flex; align-items:flex-end; margin-bottom:8px; ${isSent ? 'justify-content:flex-end' : ''}">
+                            ${!isSent ? `<img src="${pic}" class="msg-img">` : ''}
+                            <div class="msg ${isSent ? 'sent' : 'received'}">${d.t}</div>
+                        </div>`;
                 });
                 box.scrollTop = box.scrollHeight;
             });
@@ -211,22 +228,30 @@
             document.getElementById('chat-list-page').style.display = 'block';
         };
 
-        window.openEdit = () => {
-            document.getElementById('edit-modal').style.display = 'flex';
+        // সেটিং ফাংশনালিটি
+        window.openSettings = () => {
+            document.getElementById('settings-modal').style.display = 'flex';
             document.getElementById('editName').value = currentUser.username;
+            document.getElementById('editPic').value = currentUser.profilePic;
         };
 
+        window.closeSettings = () => { document.getElementById('settings-modal').style.display = 'none'; };
+
         document.getElementById('saveProfileBtn').onclick = async () => {
-            const n = document.getElementById('editName').value;
-            const p = document.getElementById('editPic').value || currentUser.profilePic;
-            await update(ref(db, 'users/' + currentUser.id), { username: n, profilePic: p });
+            const newName = document.getElementById('editName').value;
+            const newPic = document.getElementById('editPic').value;
+            await update(ref(db, 'users/' + currentUser.id), { username: newName, profilePic: newPic });
+            currentUser.username = newName;
+            currentUser.profilePic = newPic;
+            localStorage.setItem("user", JSON.stringify(currentUser));
+            alert("Profile Updated!");
             location.reload();
         };
 
         document.getElementById('logoutBtn').onclick = () => { localStorage.clear(); location.reload(); };
 
-        const s = localStorage.getItem("user");
-        if(s) { currentUser = JSON.parse(s); startApp(); }
+        const savedUser = localStorage.getItem("user");
+        if(savedUser) { currentUser = JSON.parse(savedUser); startApp(); }
     </script>
 </body>
 </html>
