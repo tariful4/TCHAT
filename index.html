@@ -3,27 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat App</title>
-    <link rel="stylesheet" href="style.css">
+    <title>My Chat App</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* CSS অংশ */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background: #f0f2f5; height: 100vh; overflow: hidden; }
+
+        /* Auth Card */
+        .auth-card { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px; }
+        .app-logo { font-size: 30px; margin-bottom: 20px; font-weight: bold; color: #0084ff; }
+        input { width: 100%; max-width: 350px; padding: 14px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+        button { width: 100%; max-width: 350px; padding: 14px; background: #0084ff; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .toggle-txt { margin-top: 15px; font-size: 14px; }
+        .toggle-txt span { color: #0084ff; font-weight: bold; cursor: pointer; }
+
+        /* Main Interface */
+        .header { padding: 15px; background: white; border-bottom: 1px solid #eee; }
+        .header-top { display: flex; align-items: center; justify-content: space-between; }
+        .top-avatar { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; }
+        .search-bar { background: #f0f0f0; padding: 10px; border-radius: 20px; display: flex; margin-top: 10px; align-items: center; }
+        .search-bar input { background: transparent; border: none; padding: 0 10px; margin: 0; width: 100%; }
+
+        /* User List */
+        .conversations { height: calc(100vh - 180px); overflow-y: auto; background: white; }
+        .chat-item { display: flex; align-items: center; padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f9f9f9; }
+        .chat-item img { width: 55px; height: 55px; border-radius: 50%; margin-right: 15px; }
+
+        /* Inbox */
+        #chat-box { height: calc(100vh - 140px); overflow-y: auto; padding: 15px; display: flex; flex-direction: column; background: white; }
+        .msg { max-width: 75%; padding: 10px 15px; border-radius: 18px; margin-bottom: 5px; font-size: 15px; }
+        .sent { align-self: flex-end; background: #0084ff; color: white; }
+        .received { align-self: flex-start; background: #e4e6eb; color: black; }
+
+        /* Red Dot */
+        .red-dot { width: 10px; height: 10px; background: red; border-radius: 50%; position: absolute; top: 0; right: 20px; border: 2px solid white; }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; display: flex; justify-content: space-around; padding: 12px; background: white; border-top: 1px solid #eee; }
+        .nav-item { position: relative; text-align: center; color: #888; font-size: 12px; flex: 1; }
+        .nav-item.active { color: #0084ff; }
+
+        /* Modal */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 85%; text-align: center; }
+    </style>
 </head>
 <body>
 
-    <div id="auth-container" class="auth-card">
-        <div id="login-form">
-            <h1 class="app-logo">Chatting App</h1>
+    <div id="auth-container">
+        <div id="login-form" class="auth-card">
+            <h1 class="app-logo">Chat App</h1>
             <input type="text" id="loginUser" placeholder="Username">
             <input type="password" id="loginPass" placeholder="Password">
             <button id="loginBtn">Log In</button>
-            <p class="toggle-txt">Don't have an account? <span id="showReg">Register</span></p>
+            <p class="toggle-txt">No account? <span onclick="toggleAuth(true)">Register</span></p>
         </div>
 
-        <div id="reg-form" style="display:none;">
+        <div id="reg-form" class="auth-card" style="display:none;">
             <h1 class="app-logo">Create Account</h1>
             <input type="text" id="regId" placeholder="Email or phone number">
             <input type="password" id="regPass" placeholder="Password">
             <button id="regBtn">Register</button>
-            <p class="toggle-txt">Already have an account? <span id="showLogin">Log In</span></p>
+            <p class="toggle-txt">Have account? <span onclick="toggleAuth(false)">Log In</span></p>
         </div>
     </div>
 
@@ -31,55 +71,162 @@
         <div id="chat-list-page">
             <div class="header">
                 <div class="header-top">
-                    <img id="myPic" class="top-avatar">
-                    <h2>Chats</h2>
-                    <div class="header-btns">
-                        <i class="fas fa-pen" id="editProfileBtn"></i>
-                        <i class="fas fa-sign-out-alt" id="logoutBtn" style="margin-left: 15px;"></i>
+                    <img id="myPic" class="top-avatar" src="">
+                    <h2 id="myDisplay">Chats</h2>
+                    <div>
+                        <i class="fas fa-pen" onclick="openEdit()"></i>
+                        <i class="fas fa-sign-out-alt" id="logoutBtn" style="margin-left:15px;"></i>
                     </div>
                 </div>
-                <div class="search-bar">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Search">
-                </div>
+                <div class="search-bar"><i class="fas fa-search"></i><input type="text" placeholder="Search"></div>
             </div>
-            
             <div id="users-list" class="conversations"></div>
-
             <div class="bottom-nav">
-                <div class="nav-item active"><i class="fas fa-comment"></i><span>Chats</span></div>
-                <div class="nav-item">
-                    <i class="fas fa-bell"></i>
-                    <span id="notif-dot" class="red-dot" style="display:none;"></span>
-                    <span>Notifications</span>
-                </div>
+                <div class="nav-item active"><i class="fas fa-comment"></i><br>Chats</div>
+                <div class="nav-item"><span id="notif-dot" class="red-dot" style="display:none;"></span><i class="fas fa-bell"></i><br>Notif</div>
             </div>
         </div>
 
         <div id="inbox-page" style="display:none;">
-            <div class="inbox-header">
-                <i class="fas fa-arrow-left" id="backBtn"></i>
-                <img id="pPic" class="avatar-sm">
-                <div class="p-info"><b id="pName">Name</b><span>Active now</span></div>
+            <div class="header" style="display:flex; align-items:center;">
+                <i class="fas fa-arrow-left" onclick="closeInbox()"></i>
+                <img id="pPic" class="top-avatar" style="margin: 0 10px; width:35px; height:35px;">
+                <b id="pName">Name</b>
             </div>
             <div id="chat-box"></div>
-            <div class="inbox-footer">
-                <div class="input-wrap"><input type="text" id="messageInput" placeholder="Message"></div>
-                <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+            <div class="header" style="display:flex; padding:10px;">
+                <input type="text" id="messageInput" placeholder="Message" style="margin:0; flex:1;">
+                <button id="sendBtn" style="width:60px; margin-left:10px;"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
     </div>
 
     <div id="edit-modal" class="modal" style="display:none;">
         <div class="modal-content">
-            <h3>Edit Profile</h3>
-            <input type="text" id="editName" placeholder="New Username">
-            <input type="text" id="editPic" placeholder="Profile Image URL">
+            <h3>Edit Profile</h3><br>
+            <input type="text" id="editName" placeholder="New Username"><br>
+            <input type="text" id="editPic" placeholder="New Profile Image URL"><br>
             <button id="saveProfileBtn">Save</button>
-            <button onclick="document.getElementById('edit-modal').style.display='none'">Cancel</button>
+            <button onclick="document.getElementById('edit-modal').style.display='none'" style="background:gray; margin-top:5px;">Cancel</button>
         </div>
     </div>
 
-    <script type="module" src="app.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD62pLbwBDSyszTVuN4pi83SIBxFMjjfqQ",
+            authDomain: "tariful-4f6c2.firebaseapp.com",
+            databaseURL: "https://tariful-4f6c2-default-rtdb.firebaseio.com",
+            projectId: "tariful-4f6c2",
+            storageBucket: "tariful-4f6c2.firebasestorage.app",
+            messagingSenderId: "882412147422",
+            appId: "1:882412147422:web:3100db9391ccd0bdc4684f"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        let currentUser = null, currentChatId = null;
+
+        // অথ টগল
+        window.toggleAuth = (isReg) => {
+            document.getElementById('login-form').style.display = isReg ? 'none' : 'flex';
+            document.getElementById('reg-form').style.display = isReg ? 'flex' : 'none';
+        }
+
+        // রেজিস্ট্রেশন
+        document.getElementById('regBtn').onclick = async () => {
+            const id = document.getElementById('regId').value;
+            const pass = document.getElementById('regPass').value;
+            if(!id || !pass) return alert("Empty fields!");
+            const dbId = id.replace(/[^a-zA-Z0-9]/g, "");
+            await set(ref(db, 'users/' + dbId), { id: dbId, username: id.split('@')[0], password: pass, profilePic: "https://cdn-icons-png.flaticon.com/512/149/149071.png" });
+            alert("Done! Now Log In."); location.reload();
+        };
+
+        // লগইন
+        document.getElementById('loginBtn').onclick = async () => {
+            const user = document.getElementById('loginUser').value;
+            const pass = document.getElementById('loginPass').value;
+            const snap = await get(ref(db, 'users/'));
+            snap.forEach(c => {
+                const u = c.val();
+                if(u.username === user && u.password === pass) currentUser = u;
+            });
+            if(currentUser) startApp(); else alert("Wrong!");
+        };
+
+        function startApp() {
+            localStorage.setItem("user", JSON.stringify(currentUser));
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('app-interface').style.display = 'block';
+            document.getElementById('myPic').src = currentUser.profilePic;
+            loadUsers();
+        }
+
+        function loadUsers() {
+            onValue(ref(db, 'users/'), (snap) => {
+                const list = document.getElementById('users-list');
+                list.innerHTML = "";
+                snap.forEach(c => {
+                    const u = c.val();
+                    if(u.id !== currentUser.id) {
+                        const item = document.createElement('div');
+                        item.className = 'chat-item';
+                        item.innerHTML = `<img src="${u.profilePic}"><b>${u.username}</b>`;
+                        item.onclick = () => openInbox(u.id, u.username, u.profilePic);
+                        list.appendChild(item);
+                    }
+                });
+            });
+        }
+
+        window.openInbox = (id, name, pic) => {
+            document.getElementById('chat-list-page').style.display = 'none';
+            document.getElementById('inbox-page').style.display = 'block';
+            document.getElementById('pName').innerText = name;
+            document.getElementById('pPic').src = pic;
+            document.getElementById('notif-dot').style.display = 'none';
+            currentChatId = [currentUser.id, id].sort().join("_");
+            onValue(ref(db, 'chats/' + currentChatId), (snap) => {
+                const box = document.getElementById('chat-box'); box.innerHTML = "";
+                snap.forEach(m => {
+                    const d = m.val();
+                    box.innerHTML += `<div class="msg ${d.s === currentUser.id ? 'sent' : 'received'}">${d.t}</div>`;
+                });
+                box.scrollTop = box.scrollHeight;
+            });
+        };
+
+        document.getElementById('sendBtn').onclick = () => {
+            const t = document.getElementById('messageInput').value;
+            if(!t) return;
+            push(ref(db, 'chats/' + currentChatId), { s: currentUser.id, t: t });
+            document.getElementById('messageInput').value = "";
+        };
+
+        window.closeInbox = () => {
+            document.getElementById('inbox-page').style.display = 'none';
+            document.getElementById('chat-list-page').style.display = 'block';
+        };
+
+        window.openEdit = () => {
+            document.getElementById('edit-modal').style.display = 'flex';
+            document.getElementById('editName').value = currentUser.username;
+        };
+
+        document.getElementById('saveProfileBtn').onclick = async () => {
+            const n = document.getElementById('editName').value;
+            const p = document.getElementById('editPic').value || currentUser.profilePic;
+            await update(ref(db, 'users/' + currentUser.id), { username: n, profilePic: p });
+            location.reload();
+        };
+
+        document.getElementById('logoutBtn').onclick = () => { localStorage.clear(); location.reload(); };
+
+        const s = localStorage.getItem("user");
+        if(s) { currentUser = JSON.parse(s); startApp(); }
+    </script>
 </body>
 </html>
