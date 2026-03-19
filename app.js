@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, push, onValue, get, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, push, onValue, get, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD62pLbwBDSyszTVuN4pi83SIBxFMjjfqQ",
@@ -19,43 +19,60 @@ let currentUser = null;
 let chatPartner = null;
 let currentChatId = null;
 
-// --- ১. রেজিস্ট্রেশন ও লগইন ---
+// ১২ ঘণ্টার টাইম ফরম্যাট ফাংশন
+function formatTime() {
+    return new Date().toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+}
+
+// অটো লগইন চেক
+window.onload = () => {
+    const saved = localStorage.getItem("messenger_user");
+    if(saved) {
+        currentUser = JSON.parse(saved);
+        loginSuccess();
+    }
+};
+
+// রেজিস্ট্রেশন ও লগইন
 document.getElementById('authBtn').onclick = async () => {
     const name = document.getElementById('regName').value;
     const email = document.getElementById('regEmail').value;
     const phone = document.getElementById('regPhone').value;
     const pass = document.getElementById('regPass').value;
 
-    if(!phone || !pass) return alert("Phone and Password required!");
+    if(!phone || !pass) return alert("Phone and Password are required!");
 
     const userRef = ref(db, 'users/' + phone);
-    const snapshot = await get(userRef);
+    const snap = await get(userRef);
 
-    if (snapshot.exists()) {
-        if(snapshot.val().password === pass) {
-            currentUser = snapshot.val();
+    if(snap.exists()){
+        if(snap.val().password === pass) {
+            currentUser = snap.val();
             loginSuccess();
-        } else {
-            alert("Wrong Password!");
-        }
+        } else alert("Wrong password!");
     } else {
-        const newUser = { username: name, email, phone, password: pass, profilePic: "https://cdn-icons-png.flaticon.com/512/149/149071.png", status: "online" };
-        await set(userRef, newUser);
-        currentUser = newUser;
+        currentUser = { username: name || "New User", email: email || "N/A", phone, password: pass, profilePic: "https://ui-avatars.com/api/?name="+name, status: "online" };
+        await set(userRef, currentUser);
         loginSuccess();
     }
 };
 
 function loginSuccess() {
+    localStorage.setItem("messenger_user", JSON.stringify(currentUser));
     document.getElementById('auth-container').style.display = 'none';
     document.getElementById('chat-interface').style.display = 'flex';
     document.getElementById('myName').innerText = currentUser.username;
     document.getElementById('myPic').src = currentUser.profilePic;
-    updateStatus("online");
+
+    // অনলাইন স্ট্যাটাস হ্যান্ডলিং
+    const statusRef = ref(db, 'users/' + currentUser.phone + '/status');
+    set(statusRef, "online");
+    onDisconnect(statusRef).set("offline");
+
     loadUsers();
 }
 
-// --- ২. ইউজার লিস্ট লোড করা ---
+// ইউজার লিস্ট লোড (প্রাইভেসি মেনটেইন করে)
 function loadUsers() {
     onValue(ref(db, 'users/'), (snapshot) => {
         const listDiv = document.getElementById('users-list');
@@ -63,73 +80,97 @@ function loadUsers() {
         snapshot.forEach(child => {
             const user = child.val();
             if(user.phone !== currentUser.phone) {
-                const div = document.createElement('div');
-                div.className = 'user-item';
-                div.innerHTML = `
-                    <img src="${user.profilePic}" width="40" style="border-radius:50%; margin-right:10px;">
-                    <span>${user.username}</span>
-                    <div class="status-dot ${user.status === 'online' ? 'status-online' : ''}"></div>
+                const item = document.createElement('div');
+                item.className = 'user-item';
+                item.innerHTML = `
+                    <div class="avatar-box">
+                        <img src="${user.profilePic}" class="list-avatar">
+                        <div class="status-dot ${user.status === 'online' ? 'online' : ''}"></div>
+                    </div>
+                    <div>
+                        <div style="font-weight:bold;">${user.username}</div>
+                        <div style="font-size:12px; color:gray;">Tap to chat</div>
+                    </div>
                 `;
-                div.onclick = () => openChat(user);
-                listDiv.appendChild(div);
+                item.onclick = () => openChat(user);
+                listDiv.appendChild(item);
             }
         });
     });
 }
 
-// --- ৩. চ্যাট ওপেন ও মেসেজ পাঠানো ---
+// চ্যাট ওপেন ও মেসেজ ম্যানেজমেন্ট
 function openChat(partner) {
     chatPartner = partner;
     document.getElementById('chat-header').innerText = partner.username;
-    document.getElementById('message-input-area').style.display = 'flex';
-    
-    const ids = [currentUser.phone, partner.phone].sort();
-    currentChatId = ids[0] + "_" + ids[1];
+    document.getElementById('input-section').style.display = 'flex';
+    currentChatId = [currentUser.phone, partner.phone].sort().join("_");
 
+    // মেসেজ লোড
     onValue(ref(db, 'chats/' + currentChatId), (snapshot) => {
         const box = document.getElementById('chat-box');
         box.innerHTML = "";
-        snapshot.forEach(msgChild => {
-            const msg = msgChild.val();
-            const div = document.createElement('div');
-            div.className = `msg ${msg.sender === currentUser.phone ? 'my-msg' : 'other-msg'}`;
-            div.innerText = msg.text;
-            box.appendChild(div);
+        snapshot.forEach(m => {
+            const data = m.val();
+            box.innerHTML += `
+                <div class="msg-container ${data.sender === currentUser.phone ? 'sent' : 'received'}">
+                    <div class="bubble">${data.text}</div>
+                    <div class="time">${data.timestamp}</div>
+                </div>`;
         });
         box.scrollTop = box.scrollHeight;
     });
+
+    // টাইপিং স্ট্যাটাস চেক
+    onValue(ref(db, `typing/${currentChatId}/${partner.phone}`), (snap) => {
+        document.getElementById('typing-text').innerText = snap.val() ? partner.username + " is typing..." : "";
+    });
 }
 
+// মেসেজ পাঠানো
 document.getElementById('sendBtn').onclick = () => {
     const text = document.getElementById('messageInput').value;
-    if(!text || !currentChatId) return;
-    push(ref(db, 'chats/' + currentChatId), { sender: currentUser.phone, text, time: Date.now() });
+    if(!text) return;
+    push(ref(db, 'chats/' + currentChatId), {
+        sender: currentUser.phone,
+        text: text,
+        timestamp: formatTime()
+    });
     document.getElementById('messageInput').value = "";
+    set(ref(db, `typing/${currentChatId}/${currentUser.phone}`), false);
 };
 
-// --- ৪. সেটিংস (Update/Delete/Logout) ---
+// টাইপিং ইভেন্ট
+document.getElementById('messageInput').oninput = () => {
+    if(currentChatId) {
+        set(ref(db, `typing/${currentChatId}/${currentUser.phone}`), true);
+        clearTimeout(window.tTimer);
+        window.tTimer = setTimeout(() => set(ref(db, `typing/${currentChatId}/${currentUser.phone}`), false), 2000);
+    }
+};
+
+// সেটিংস ও লগআউট
+document.getElementById('logoutBtn').onclick = () => {
+    set(ref(db, 'users/' + currentUser.phone + '/status'), "offline");
+    localStorage.removeItem("messenger_user");
+    location.reload();
+};
+
 document.getElementById('updateBtn').onclick = async () => {
     const newName = document.getElementById('newName').value;
     const newPic = document.getElementById('newPic').value;
     if(newName) currentUser.username = newName;
     if(newPic) currentUser.profilePic = newPic;
     await set(ref(db, 'users/' + currentUser.phone), currentUser);
-    alert("Updated!");
-    location.reload();
-};
-
-document.getElementById('logoutBtn').onclick = () => {
-    updateStatus("offline");
+    localStorage.setItem("messenger_user", JSON.stringify(currentUser));
+    alert("Profile Updated!");
     location.reload();
 };
 
 document.getElementById('deleteBtn').onclick = async () => {
-    if(confirm("Delete account?")) {
+    if(confirm("Delete account permanently?")) {
         await remove(ref(db, 'users/' + currentUser.phone));
+        localStorage.removeItem("messenger_user");
         location.reload();
     }
 };
-
-function updateStatus(s) {
-    if(currentUser) set(ref(db, 'users/' + currentUser.phone + '/status'), s);
-}
