@@ -6,123 +6,135 @@
     <title>TARIFUL 2.0</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* CSS অংশ - আপনার ফটো অনুযায়ী ডিজাইন */
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { background: #000; color: white; height: 100vh; overflow: hidden; }
 
-        /* ১. লগইন পেজ ডিজাইন (Photo 81) */
+        /* Auth Pages */
         #auth-container { display: flex; align-items: center; justify-content: center; height: 100vh; background: #000; }
         .auth-card { background: #1c1410; padding: 40px 30px; border-radius: 40px; width: 90%; max-width: 380px; text-align: center; }
         .app-logo { font-size: 28px; margin-bottom: 30px; color: #fff; font-weight: bold; }
         .auth-card input { width: 100%; padding: 18px; margin-bottom: 15px; background: transparent; border: 1px solid #3d2b24; border-radius: 15px; color: white; outline: none; font-size: 16px; }
         .auth-card button { width: 100%; padding: 18px; background: #8c442c; color: white; border: none; border-radius: 18px; font-weight: bold; cursor: pointer; font-size: 18px; }
         .toggle-txt { margin-top: 20px; color: #f5d020; cursor: pointer; font-weight: 500; }
-        .forgot-pw { color: #8c442c; font-size: 14px; margin-top: 15px; display: block; text-decoration: none; }
+        .forgot-pw { color: #8c442c; font-size: 14px; margin-top: 15px; display: block; text-decoration: none; cursor: pointer; }
 
-        /* ২. চ্যাট লিস্ট পেজ (Photo 82) */
+        /* Users List Page */
         .header { padding: 15px; background: #000; border-bottom: 1px solid #111; position: sticky; top: 0; }
         .header-top { display: flex; align-items: center; justify-content: space-between; }
-        .top-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; }
-        .conversations { height: calc(100vh - 130px); overflow-y: auto; }
-        .chat-item { display: flex; align-items: center; padding: 15px; cursor: pointer; }
-        .chat-item img { width: 60px; height: 60px; border-radius: 50%; margin-right: 15px; border: 1px solid #222; }
+        .top-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; border: 2px solid #8c442c; }
+        .conversations { height: calc(100vh - 80px); overflow-y: auto; }
+        .chat-item { display: flex; align-items: center; padding: 15px; cursor: pointer; transition: background 0.3s; border-bottom: 1px solid #111; }
+        .chat-item:hover { background: #1a1a1a; }
+        .chat-item img { width: 60px; height: 60px; border-radius: 50%; margin-right: 15px; border: 2px solid #333; object-fit: cover; }
         .chat-info { flex: 1; }
         .chat-info h4 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
         .chat-info p { font-size: 14px; color: #aaa; }
 
-        /* ৩. ইনবক্স পেজ (Photo 84) */
+        /* Inbox Page */
         #chat-box { height: calc(100vh - 135px); overflow-y: auto; padding: 15px; display: flex; flex-direction: column; background: #000; }
         .msg { max-width: 75%; padding: 10px 16px; border-radius: 20px; margin-bottom: 5px; font-size: 15px; line-height: 1.4; }
         .sent { align-self: flex-end; background: #0084ff; color: white; }
         .received { align-self: flex-start; background: #333; color: white; }
-        .msg-img { width: 28px; height: 28px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+        .msg-img { width: 28px; height: 28px; border-radius: 50%; margin-right: 8px; vertical-align: middle; object-fit: cover; }
 
-        /* চ্যাট ইনপুট এরিয়া */
-        .chat-footer { display: flex; align-items: center; padding: 10px; background: #000; }
-        .footer-icons { display: flex; gap: 18px; margin-right: 12px; color: #0084ff; font-size: 20px; }
-        #messageInput { flex: 1; background: #1a1a1a; border: none; padding: 12px 18px; border-radius: 25px; color: white; outline: none; }
-        #sendBtn { background: transparent; border: none; color: #0084ff; font-size: 22px; margin-left: 10px; cursor: pointer; }
+        /* Chat Footer */
+        .chat-footer { display: flex; align-items: center; padding: 10px; background: #000; border-top: 1px solid #111; }
+        #messageInput { flex: 1; background: #1a1a1a; border: none; padding: 12px 18px; border-radius: 25px; color: white; outline: none; margin: 0 10px; }
+        #sendBtn { background: transparent; border: none; color: #0084ff; font-size: 22px; cursor: pointer; }
 
-        /* ৪. সেটিং/এডিট প্রোফাইল মোডাল */
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        /* Settings Modal */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center; z-index: 1000; }
         .modal-content { background: #1a1a1a; padding: 30px; border-radius: 25px; width: 85%; max-width: 350px; text-align: center; border: 1px solid #333; }
         .modal-content input { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #444; color: white; border-radius: 10px; }
         .modal-btn { padding: 12px 20px; width: 100%; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        
+        /* Logout Button */
+        .logout-btn { position: absolute; top: 15px; right: 15px; background: #8c442c; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 14px; }
     </style>
 </head>
 <body>
 
+    <!-- Auth Container -->
     <div id="auth-container">
+        <!-- Login Form -->
         <div id="login-form" class="auth-card">
             <h1 class="app-logo">TARIFUL 2.0</h1>
-            <input type="text" id="loginUser" placeholder="Username">
+            <input type="text" id="loginEmailPhone" placeholder="Email or Phone Number">
             <input type="password" id="loginPass" placeholder="Password">
             <button id="loginBtn">Login</button>
-            <p class="toggle-txt" onclick="toggleAuth(true)">New User? Register</p>
-            <a href="#" class="forgot-pw">Forgot Password?</a>
+            <p class="toggle-txt" onclick="toggleAuth(true)">Create New Account</p>
+            <a href="#" class="forgot-pw" onclick="openForgotModal()">Forgot Password?</a>
         </div>
 
+        <!-- Register Form - Only 3 inputs -->
         <div id="reg-form" class="auth-card" style="display:none;">
             <h1 class="app-logo">Register</h1>
-            <input type="text" id="regName" placeholder="Full Name">
-            <input type="password" id="regPass" placeholder="Set Password">
+            <input type="text" id="regEmailPhone" placeholder="Email or Phone Number" required>
+            <input type="password" id="regPass" placeholder="Password" required>
+            <input type="text" id="regSecurity" placeholder="Security Code (PIN)" required>
+            <small style="color: #888; display: block; margin: -10px 0 15px; text-align: left;">Remember this PIN for password reset</small>
             <button id="regBtn">Register</button>
-            <p class="toggle-txt" onclick="toggleAuth(false)">Have account? Log In</p>
+            <p class="toggle-txt" onclick="toggleAuth(false)">Already have account? Login</p>
         </div>
     </div>
 
+    <!-- Forgot Password Modal -->
+    <div id="forgot-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom:15px;">Reset Password</h3>
+            <input type="text" id="forgotEmailPhone" placeholder="Email or Phone">
+            <input type="text" id="forgotSecurity" placeholder="Security PIN">
+            <input type="password" id="newPassword" placeholder="New Password">
+            <button class="modal-btn" style="background:#0084ff; color:white;" id="resetPasswordBtn">Reset Password</button>
+            <button class="modal-btn" style="background:#333; color:white;" onclick="closeForgotModal()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Main App Interface -->
     <div id="app-interface" style="display:none;">
-        <div id="chat-list-page">
+        <!-- Users List Page -->
+        <div id="users-page">
             <div class="header">
                 <div class="header-top">
-                    <img id="myPic" class="top-avatar" src="" onclick="openSettings()">
-                    <h2 style="flex:1; margin-left:15px; font-size:24px;">Chats</h2>
-                    <i class="fas fa-camera" style="font-size: 20px;"></i>
+                    <img id="myPic" class="top-avatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" onclick="openSettings()">
+                    <h2 style="flex:1; margin-left:15px; font-size:24px;">Users</h2>
+                    <i class="fas fa-sign-out-alt" onclick="logout()" style="color:#8c442c; font-size:20px; cursor:pointer;"></i>
                 </div>
                 <div style="background:#1a1a1a; padding:10px; border-radius:20px; margin-top:15px; display:flex; align-items:center;">
                     <i class="fas fa-search" style="color:#555; margin-right:10px;"></i>
-                    <input type="text" placeholder="Search" style="background:transparent; border:none; color:white; outline:none; width:100%;">
+                    <input type="text" id="searchUsers" placeholder="Search users..." style="background:transparent; border:none; color:white; outline:none; width:100%;">
                 </div>
             </div>
             <div id="users-list" class="conversations"></div>
         </div>
 
+        <!-- Inbox Page -->
         <div id="inbox-page" style="display:none;">
             <div class="header" style="display:flex; align-items:center;">
-                <i class="fas fa-arrow-left" onclick="closeInbox()" style="color:#0084ff; font-size:20px; padding:5px;"></i>
+                <i class="fas fa-arrow-left" onclick="closeInbox()" style="color:#0084ff; font-size:20px; padding:5px; cursor:pointer;"></i>
                 <img id="pPic" class="top-avatar" style="margin: 0 12px; width:35px; height:35px;">
                 <div style="flex:1">
                     <b id="pName" style="font-size:16px;">Name</b><br>
-                    <span style="font-size:11px; color: #888;">Active 29m ago</span>
-                </div>
-                <div style="color:#0084ff; font-size:18px; display:flex; gap:20px;">
-                    <i class="fas fa-phone"></i>
-                    <i class="fas fa-video"></i>
-                    <i class="fas fa-info-circle"></i>
+                    <span id="pStatus" style="font-size:11px; color: #888;">Online</span>
                 </div>
             </div>
             <div id="chat-box"></div>
             <div class="chat-footer">
-                <div class="footer-icons">
-                    <i class="fas fa-plus-circle"></i>
-                    <i class="fas fa-camera"></i>
-                    <i class="fas fa-image"></i>
-                    <i class="fas fa-microphone"></i>
-                </div>
-                <input type="text" id="messageInput" placeholder="Aa">
+                <input type="text" id="messageInput" placeholder="Type a message...">
                 <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
     </div>
 
+    <!-- Settings Modal -->
     <div id="settings-modal" class="modal">
         <div class="modal-content">
-            <h3 style="margin-bottom:15px;">Edit Profile</h3>
-            <input type="text" id="editName" placeholder="New Name">
-            <input type="text" id="editPic" placeholder="New Profile Image URL">
+            <h3 style="margin-bottom:15px;">Profile Settings</h3>
+            <img id="modalProfilePic" src="" style="width:100px; height:100px; border-radius:50%; margin:10px auto; border:3px solid #8c442c;">
+            <input type="text" id="editName" placeholder="Display Name">
+            <input type="text" id="editEmailPhone" placeholder="Email/Phone">
             <button class="modal-btn" style="background:#0084ff; color:white;" id="saveProfileBtn">Save Changes</button>
             <button class="modal-btn" style="background:#333; color:white;" onclick="closeSettings()">Cancel</button>
-            <button class="modal-btn" style="background:#8c442c; color:white; margin-top:20px;" id="logoutBtn">Logout</button>
         </div>
     </div>
 
@@ -130,6 +142,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, push, onValue, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyD62pLbwBDSyszTVuN4pi83SIBxFMjjfqQ",
             authDomain: "tariful-4f6c2.firebaseapp.com",
@@ -142,116 +155,322 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        let currentUser = null, currentChatId = null;
+        
+        let currentUser = null;
+        let currentChatId = null;
+        let currentChatUser = null;
 
-        window.toggleAuth = (isReg) => {
-            document.getElementById('login-form').style.display = isReg ? 'none' : 'flex';
-            document.getElementById('reg-form').style.display = isReg ? 'flex' : 'none';
+        // Toggle between Login and Register
+        window.toggleAuth = (showReg) => {
+            document.getElementById('login-form').style.display = showReg ? 'none' : 'block';
+            document.getElementById('reg-form').style.display = showReg ? 'block' : 'none';
         }
 
-        document.getElementById('regBtn').onclick = async () => {
-            const name = document.getElementById('regName').value;
-            const pass = document.getElementById('regPass').value;
-            if(!name || !pass) return alert("Fill all fields!");
-            const dbId = name.toLowerCase().replace(/\s/g, "") + Math.floor(Math.random() * 1000);
-            await set(ref(db, 'users/' + dbId), { id: dbId, username: name, password: pass, profilePic: "https://cdn-icons-png.flaticon.com/512/149/149071.png" });
-            alert("Registered! Now Login."); toggleAuth(false);
+        // Forgot Password Modal
+        window.openForgotModal = () => {
+            document.getElementById('forgot-modal').style.display = 'flex';
         };
 
+        window.closeForgotModal = () => {
+            document.getElementById('forgot-modal').style.display = 'none';
+        };
+
+        // Reset Password
+        document.getElementById('resetPasswordBtn').onclick = async () => {
+            const emailPhone = document.getElementById('forgotEmailPhone').value;
+            const securityCode = document.getElementById('forgotSecurity').value;
+            const newPass = document.getElementById('newPassword').value;
+
+            if (!emailPhone || !securityCode || !newPass) {
+                alert('Please fill all fields!');
+                return;
+            }
+
+            const usersRef = ref(db, 'users/');
+            const snapshot = await get(usersRef);
+            let userFound = null;
+            let userId = null;
+
+            snapshot.forEach((child) => {
+                const user = child.val();
+                if (user.emailPhone === emailPhone) {
+                    userFound = user;
+                    userId = child.key;
+                }
+            });
+
+            if (!userFound) {
+                alert('Email/Phone not found!');
+                return;
+            }
+
+            if (userFound.securityCode !== securityCode) {
+                alert('Wrong security PIN!');
+                return;
+            }
+
+            await update(ref(db, 'users/' + userId), {
+                password: newPass
+            });
+
+            alert('Password reset successful! Now login with new password.');
+            closeForgotModal();
+        };
+
+        // Registration - Only 3 fields
+        document.getElementById('regBtn').onclick = async () => {
+            const emailPhone = document.getElementById('regEmailPhone').value;
+            const pass = document.getElementById('regPass').value;
+            const securityCode = document.getElementById('regSecurity').value;
+
+            if(!emailPhone || !pass || !securityCode) {
+                alert("Please fill all fields!");
+                return;
+            }
+
+            // Check if already exists
+            const usersRef = ref(db, 'users/');
+            const snapshot = await get(usersRef);
+            let exists = false;
+
+            snapshot.forEach((child) => {
+                const user = child.val();
+                if (user.emailPhone === emailPhone) {
+                    exists = true;
+                }
+            });
+
+            if (exists) {
+                alert('This email/phone is already registered!');
+                return;
+            }
+
+            // Create new user
+            const dbId = 'user_' + Date.now();
+            const newUser = { 
+                id: dbId, 
+                emailPhone: emailPhone,
+                username: emailPhone.split('@')[0] || 'User', // Default name from email
+                password: pass, 
+                securityCode: securityCode,
+                profilePic: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+                createdAt: new Date().toISOString()
+            };
+            
+            await set(ref(db, 'users/' + dbId), newUser);
+            
+            // Auto login after registration
+            currentUser = newUser;
+            localStorage.setItem("user", JSON.stringify(currentUser));
+            
+            // Start app
+            startApp();
+            
+            // Clear form
+            document.getElementById('regEmailPhone').value = '';
+            document.getElementById('regPass').value = '';
+            document.getElementById('regSecurity').value = '';
+        };
+
+        // Login
         document.getElementById('loginBtn').onclick = async () => {
-            const user = document.getElementById('loginUser').value;
+            const emailPhone = document.getElementById('loginEmailPhone').value;
             const pass = document.getElementById('loginPass').value;
+            
             const snap = await get(ref(db, 'users/'));
             let found = false;
+            
             snap.forEach(c => {
                 const u = c.val();
-                if(u.username === user && u.password === pass) { currentUser = u; found = true; }
+                if(u.emailPhone === emailPhone && u.password === pass) { 
+                    currentUser = u; 
+                    found = true; 
+                }
             });
-            if(found) startApp(); else alert("Invalid username or password!");
+            
+            if(found) {
+                localStorage.setItem("user", JSON.stringify(currentUser));
+                startApp();
+                document.getElementById('loginEmailPhone').value = '';
+                document.getElementById('loginPass').value = '';
+            } else {
+                alert("Invalid email/phone or password!");
+            }
         };
 
+        // Start App
         function startApp() {
-            localStorage.setItem("user", JSON.stringify(currentUser));
             document.getElementById('auth-container').style.display = 'none';
             document.getElementById('app-interface').style.display = 'block';
             document.getElementById('myPic').src = currentUser.profilePic;
             loadUsers();
         }
 
+        // Load All Users (except current user)
         function loadUsers() {
-            onValue(ref(db, 'users/'), (snap) => {
+            const usersRef = ref(db, 'users/');
+            onValue(usersRef, (snap) => {
                 const list = document.getElementById('users-list');
                 list.innerHTML = "";
+                
                 snap.forEach(c => {
                     const u = c.val();
                     if(u.id !== currentUser.id) {
                         const item = document.createElement('div');
                         item.className = 'chat-item';
-                        item.innerHTML = `<img src="${u.profilePic}"><div class="chat-info"><h4>${u.username}</h4><p>Active 10m ago</p></div>`;
-                        item.onclick = () => openInbox(u.id, u.username, u.profilePic);
+                        item.id = `user_${u.id}`;
+                        item.innerHTML = `
+                            <img src="${u.profilePic}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
+                            <div class="chat-info">
+                                <h4>${u.username}</h4>
+                                <p>${u.emailPhone}</p>
+                            </div>
+                        `;
+                        item.onclick = () => openInbox(u);
                         list.appendChild(item);
                     }
                 });
             });
         }
 
-        window.openInbox = (id, name, pic) => {
-            document.getElementById('chat-list-page').style.display = 'none';
+        // Open Inbox
+        window.openInbox = (user) => {
+            currentChatUser = user;
+            document.getElementById('users-page').style.display = 'none';
             document.getElementById('inbox-page').style.display = 'block';
-            document.getElementById('pName').innerText = name;
-            document.getElementById('pPic').src = pic;
-            currentChatId = [currentUser.id, id].sort().join("_");
-            onValue(ref(db, 'chats/' + currentChatId), (snap) => {
-                const box = document.getElementById('chat-box'); box.innerHTML = "";
+            document.getElementById('pName').innerText = user.username;
+            document.getElementById('pPic').src = user.profilePic;
+            document.getElementById('pStatus').innerText = 'Online';
+            
+            // Create unique chat ID
+            currentChatId = [currentUser.id, user.id].sort().join('_');
+            
+            // Load messages
+            const chatRef = ref(db, 'chats/' + currentChatId);
+            onValue(chatRef, (snap) => {
+                const box = document.getElementById('chat-box');
+                box.innerHTML = "";
+                
                 snap.forEach(m => {
-                    const d = m.val();
-                    const isSent = d.s === currentUser.id;
-                    box.innerHTML += `
-                        <div style="display:flex; align-items:flex-end; margin-bottom:8px; ${isSent ? 'justify-content:flex-end' : ''}">
-                            ${!isSent ? `<img src="${pic}" class="msg-img">` : ''}
-                            <div class="msg ${isSent ? 'sent' : 'received'}">${d.t}</div>
-                        </div>`;
+                    const msg = m.val();
+                    const isSent = msg.sender === currentUser.id;
+                    
+                    const msgDiv = document.createElement('div');
+                    msgDiv.style.display = 'flex';
+                    msgDiv.style.alignItems = 'flex-end';
+                    msgDiv.style.marginBottom = '8px';
+                    msgDiv.style.justifyContent = isSent ? 'flex-end' : 'flex-start';
+                    
+                    msgDiv.innerHTML = `
+                        ${!isSent ? `<img src="${user.profilePic}" class="msg-img">` : ''}
+                        <div class="msg ${isSent ? 'sent' : 'received'}">${msg.text}</div>
+                    `;
+                    
+                    box.appendChild(msgDiv);
                 });
+                
                 box.scrollTop = box.scrollHeight;
             });
         };
 
+        // Send Message
         document.getElementById('sendBtn').onclick = () => {
-            const t = document.getElementById('messageInput').value;
-            if(!t) return;
-            push(ref(db, 'chats/' + currentChatId), { s: currentUser.id, t: t });
+            const text = document.getElementById('messageInput').value.trim();
+            if(!text || !currentChatId) return;
+            
+            const message = {
+                sender: currentUser.id,
+                text: text,
+                timestamp: Date.now()
+            };
+            
+            push(ref(db, 'chats/' + currentChatId), message);
             document.getElementById('messageInput').value = "";
         };
 
+        // Enter key to send
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('sendBtn').click();
+            }
+        });
+
+        // Close Inbox
         window.closeInbox = () => {
             document.getElementById('inbox-page').style.display = 'none';
-            document.getElementById('chat-list-page').style.display = 'block';
+            document.getElementById('users-page').style.display = 'block';
+            currentChatId = null;
         };
 
-        // সেটিং ফাংশনালিটি
+        // Search Users
+        document.getElementById('searchUsers').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const items = document.querySelectorAll('.chat-item');
+            
+            items.forEach(item => {
+                const name = item.querySelector('h4').innerText.toLowerCase();
+                const email = item.querySelector('p').innerText.toLowerCase();
+                
+                if(name.includes(searchTerm) || email.includes(searchTerm)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+
+        // Open Settings
         window.openSettings = () => {
             document.getElementById('settings-modal').style.display = 'flex';
+            document.getElementById('modalProfilePic').src = currentUser.profilePic;
             document.getElementById('editName').value = currentUser.username;
-            document.getElementById('editPic').value = currentUser.profilePic;
+            document.getElementById('editEmailPhone').value = currentUser.emailPhone;
         };
 
-        window.closeSettings = () => { document.getElementById('settings-modal').style.display = 'none'; };
+        window.closeSettings = () => {
+            document.getElementById('settings-modal').style.display = 'none';
+        };
 
+        // Save Profile
         document.getElementById('saveProfileBtn').onclick = async () => {
             const newName = document.getElementById('editName').value;
-            const newPic = document.getElementById('editPic').value;
-            await update(ref(db, 'users/' + currentUser.id), { username: newName, profilePic: newPic });
+            const newEmailPhone = document.getElementById('editEmailPhone').value;
+            
+            if(!newName || !newEmailPhone) {
+                alert('Fields cannot be empty!');
+                return;
+            }
+
+            await update(ref(db, 'users/' + currentUser.id), {
+                username: newName,
+                emailPhone: newEmailPhone
+            });
+
             currentUser.username = newName;
-            currentUser.profilePic = newPic;
+            currentUser.emailPhone = newEmailPhone;
             localStorage.setItem("user", JSON.stringify(currentUser));
-            alert("Profile Updated!");
-            location.reload();
+
+            alert('Profile updated!');
+            closeSettings();
         };
 
-        document.getElementById('logoutBtn').onclick = () => { localStorage.clear(); location.reload(); };
+        // Logout
+        window.logout = () => {
+            localStorage.removeItem('user');
+            currentUser = null;
+            document.getElementById('app-interface').style.display = 'none';
+            document.getElementById('auth-container').style.display = 'flex';
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('reg-form').style.display = 'none';
+        };
 
+        // Check saved user
         const savedUser = localStorage.getItem("user");
-        if(savedUser) { currentUser = JSON.parse(savedUser); startApp(); }
+        if(savedUser) {
+            currentUser = JSON.parse(savedUser);
+            startApp();
+        }
     </script>
 </body>
 </html>
