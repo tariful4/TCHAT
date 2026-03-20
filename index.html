@@ -1,156 +1,281 @@
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, push, onValue, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TARIFUL 2.0 - Private Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', 'Poppins', sans-serif; }
+        body { background: #000; color: white; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 
-    // আপনার নতুন Firebase Config
-    const firebaseConfig = {
-        apiKey: "AIzaSyAT22X04lwGjaneGGW9sKzeO6hWVAA3n6g",
-        authDomain: "tchat-a9707.firebaseapp.com",
-        databaseURL: "https://tchat-a9707-default-rtdb.firebaseio.com",
-        projectId: "tchat-a9707",
-        storageBucket: "tchat-a9707.firebasestorage.app",
-        messagingSenderId: "324756549796",
-        appId: "1:324756549796:web:f557ebab16be9e5545f631",
-        measurementId: "G-PJBY5G4CW2"
-    };
+        /* Auth Pages */
+        #auth-container { position: fixed; width: 100%; height: 100%; background: linear-gradient(135deg, #000 0%, #1a0c08 100%); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+        .auth-card { background: rgba(28,20,16,0.95); padding: 40px 30px; border-radius: 40px; width: 90%; max-width: 380px; text-align: center; border: 1px solid rgba(140,68,44,0.3); }
+        .app-logo { font-size: 28px; margin-bottom: 30px; color: #fff; font-weight: bold; background: linear-gradient(135deg, #fff, #8c442c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .auth-card input { width: 100%; padding: 15px; margin-bottom: 15px; background: rgba(0,0,0,0.5); border: 1px solid #3d2b24; border-radius: 25px; color: white; outline: none; }
+        .auth-card button { width: 100%; padding: 15px; background: linear-gradient(135deg, #8c442c, #5a2c1c); color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; }
+        .toggle-txt { margin-top: 15px; color: #f5d020; cursor: pointer; }
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+        /* Main Layout */
+        #app-interface { height: 100vh; width: 100%; position: relative; display: none; }
+        #users-page, #inbox-page { height: 100%; width: 100%; display: flex; flex-direction: column; position: absolute; background: #000; }
 
-    let currentUser = JSON.parse(localStorage.getItem('user')) || null;
-    let currentChatId = null;
-    let selectedPic = "";
-    let msgListener = null;
+        /* Headers */
+        .header, .chat-header { padding: 15px; background: #0a0a0a; border-bottom: 1px solid rgba(140,68,44,0.3); flex-shrink: 0; }
+        .header-top { display: flex; align-items: center; justify-content: space-between; }
+        .top-avatar { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #8c442c; object-fit: cover; cursor: pointer; }
 
-    const avatars = [
-        "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-        "https://cdn-icons-png.flaticon.com/512/147/147144.png",
-        "https://cdn-icons-png.flaticon.com/512/168/168726.png",
-        "https://cdn-icons-png.flaticon.com/512/219/219970.png",
-        "https://cdn-icons-png.flaticon.com/512/188/188987.png",
-        "https://cdn-icons-png.flaticon.com/512/163/163821.png"
-    ];
+        /* User List */
+        .conversations { flex-grow: 1; overflow-y: auto; padding: 10px; }
+        .chat-item { display: flex; align-items: center; padding: 15px; border-radius: 15px; margin-bottom: 5px; transition: 0.3s; cursor: pointer; }
+        .chat-item:hover { background: rgba(140,68,44,0.2); }
+        .chat-item img { width: 55px; height: 55px; border-radius: 50%; margin-right: 15px; border: 2px solid #8c442c; object-fit: cover; }
 
-    window.toggleAuth = (reg) => {
-        document.getElementById('login-form').style.display = reg ? 'none' : 'block';
-        document.getElementById('reg-form').style.display = reg ? 'block' : 'none';
-    }
+        /* Chat Box Fixing */
+        #chat-box { flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #000; }
+        .message-wrapper { display: flex; width: 100%; }
+        .message-wrapper.sent { justify-content: flex-end; }
+        .message-wrapper.received { justify-content: flex-start; }
+        .message-bubble { max-width: 75%; padding: 12px 16px; border-radius: 20px; font-size: 15px; position: relative; word-wrap: break-word; }
+        .message-bubble.sent { background: #0084ff; color: white; border-bottom-right-radius: 5px; }
+        .message-bubble.received { background: #262626; color: white; border-bottom-left-radius: 5px; }
+        .message-avatar { width: 30px; height: 30px; border-radius: 50%; margin-right: 8px; align-self: flex-end; }
 
-    window.register = async () => {
-        const ep = document.getElementById('regEmailPhone').value;
-        const ps = document.getElementById('regPass').value;
-        if(!ep || !ps) return alert("Fill fields");
-        const id = 'user_' + Date.now();
-        const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: avatars[0] };
-        await set(ref(db, 'users/'+id), user);
-        loginOk(user);
-    }
+        /* Footer Fixed */
+        .chat-footer { padding: 10px 15px; background: #0a0a0a; display: flex; align-items: center; gap: 10px; border-top: 1px solid #333; flex-shrink: 0; }
+        #messageInput { flex: 1; background: #1a1a1a; border: 1px solid #333; padding: 12px 20px; border-radius: 30px; color: white; outline: none; }
+        #sendBtn { background: #0084ff; border: none; width: 45px; height: 45px; border-radius: 50%; color: white; cursor: pointer; flex-shrink: 0; }
 
-    window.login = async () => {
-        const ep = document.getElementById('loginEmailPhone').value;
-        const ps = document.getElementById('loginPass').value;
-        const snap = await get(ref(db, 'users'));
-        let found = null;
-        snap.forEach(c => { if(c.val().emailPhone === ep && c.val().password === ps) found = c.val(); });
-        if(found) loginOk(found); else alert("Wrong!");
-    }
+        /* Settings Modal */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center; z-index: 3000; }
+        .modal-content { background: #1a1a1a; padding: 25px; border-radius: 30px; width: 90%; max-width: 380px; text-align: center; border: 1px solid #8c442c; overflow-y: auto; max-height: 90vh; }
+        .current-profile-pic { width: 100px; height: 100px; border-radius: 50%; border: 3px solid #8c442c; object-fit: cover; margin-bottom: 15px; }
+        .profile-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
+        .gallery-item { width: 70px; height: 70px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; object-fit: cover; }
+        .gallery-item.selected { border-color: #0084ff; }
+        .modal-btn { width: 100%; padding: 12px; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-    function loginOk(user) {
-        currentUser = user;
-        localStorage.setItem('user', JSON.stringify(user));
-        location.reload();
-    }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
 
-    function start() {
-        if(!currentUser) return;
-        document.getElementById('auth-container').classList.add('hidden');
-        document.getElementById('app-interface').style.display = 'block';
-        document.getElementById('myPic').src = currentUser.profilePic;
-        loadUsers();
-    }
+    <div id="auth-container">
+        <div id="login-form" class="auth-card">
+            <h1 class="app-logo">✨ TARIFUL 2.0 ✨</h1>
+            <input type="text" id="loginEmailPhone" placeholder="📧 Email or Phone">
+            <input type="password" id="loginPass" placeholder="🔒 Password">
+            <button onclick="login()">Login</button>
+            <p class="toggle-txt" onclick="toggleAuth(true)">Create New Account</p>
+        </div>
+        <div id="reg-form" class="auth-card" style="display:none;">
+            <h1 class="app-logo">✨ Register ✨</h1>
+            <input type="text" id="regEmailPhone" placeholder="📧 Email or Phone">
+            <input type="password" id="regPass" placeholder="🔒 Password">
+            <input type="text" id="regSecurity" placeholder="🔐 PIN Code">
+            <button onclick="register()">Register</button>
+            <p class="toggle-txt" onclick="toggleAuth(false)">Back to Login</p>
+        </div>
+    </div>
 
-    function loadUsers() {
-        onValue(ref(db, 'users'), (snap) => {
-            const list = document.getElementById('users-list');
-            list.innerHTML = "";
-            snap.forEach(c => {
-                const u = c.val();
-                if(u.id !== currentUser.id) {
-                    const div = document.createElement('div');
-                    div.className = 'chat-item';
-                    div.innerHTML = `<img src="${u.profilePic}"><div><h4>${u.username}</h4><small>Online</small></div>`;
-                    div.onclick = () => openInbox(u);
-                    list.appendChild(div);
-                }
+    <div id="app-interface">
+        <div id="users-page">
+            <div class="header">
+                <div class="header-top">
+                    <img id="myPic" class="top-avatar" src="" onclick="openSettings()">
+                    <h2 style="flex:1; margin-left:15px;">Chats</h2>
+                    <i class="fas fa-sign-out-alt" onclick="logout()" style="color:#8c442c; font-size:20px;"></i>
+                </div>
+            </div>
+            <div id="users-list" class="conversations"></div>
+        </div>
+
+        <div id="inbox-page" class="hidden">
+            <div class="chat-header">
+                <div style="display: flex; align-items: center;">
+                    <i class="fas fa-arrow-left" onclick="closeInbox()" style="color:#0084ff; font-size:20px; margin-right:15px;"></i>
+                    <img id="pPic" class="top-avatar" src="">
+                    <div style="margin-left:10px;">
+                        <h4 id="pName" style="font-size: 16px;">Name</h4>
+                        <small style="color:#4caf50;">Online</small>
+                    </div>
+                </div>
+            </div>
+            <div id="chat-box"></div>
+            <div class="chat-footer">
+                <input type="text" id="messageInput" placeholder="Type a message...">
+                <button id="sendBtn" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Profile</h3>
+            <img id="editPreview" class="current-profile-pic" src="">
+            <input type="text" id="editName" style="width:100%; padding:10px; border-radius:20px; border:1px solid #333; background:#000; color:#fff; margin-bottom:15px;">
+            <p>Choose Avatar</p>
+            <div class="profile-gallery" id="profileGallery"></div>
+            <button class="modal-btn" style="background:#0084ff; color:white;" onclick="saveProfile()">Save Changes</button>
+            <button class="modal-btn" style="background:#333; color:white;" onclick="closeSettings()">Cancel</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAT22X04lwGjaneGGW9sKzeO6hWVAA3n6g",
+            authDomain: "tchat-a9707.firebaseapp.com",
+            databaseURL: "https://tchat-a9707-default-rtdb.firebaseio.com",
+            projectId: "tchat-a9707",
+            storageBucket: "tchat-a9707.firebasestorage.app",
+            messagingSenderId: "324756549796",
+            appId: "1:324756549796:web:f557ebab16be9e5545f631"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let currentUser = JSON.parse(localStorage.getItem('user')) || null;
+        let currentChatId = null;
+        let selectedPic = "";
+        let msgListener = null;
+
+        const avatars = [
+            "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+            "https://cdn-icons-png.flaticon.com/512/147/147144.png",
+            "https://cdn-icons-png.flaticon.com/512/168/168726.png",
+            "https://cdn-icons-png.flaticon.com/512/219/219970.png",
+            "https://cdn-icons-png.flaticon.com/512/188/188987.png",
+            "https://cdn-icons-png.flaticon.com/512/163/163821.png"
+        ];
+
+        window.toggleAuth = (reg) => {
+            document.getElementById('login-form').style.display = reg ? 'none' : 'block';
+            document.getElementById('reg-form').style.display = reg ? 'block' : 'none';
+        }
+
+        window.register = async () => {
+            const ep = document.getElementById('regEmailPhone').value;
+            const ps = document.getElementById('regPass').value;
+            if(!ep || !ps) return alert("Fill fields");
+            const id = 'user_' + Date.now();
+            const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: avatars[0] };
+            await set(ref(db, 'users/'+id), user);
+            loginOk(user);
+        }
+
+        window.login = async () => {
+            const ep = document.getElementById('loginEmailPhone').value;
+            const ps = document.getElementById('loginPass').value;
+            const snap = await get(ref(db, 'users'));
+            let found = null;
+            snap.forEach(c => { if(c.val().emailPhone === ep && c.val().password === ps) found = c.val(); });
+            if(found) loginOk(found); else alert("Wrong!");
+        }
+
+        function loginOk(user) {
+            currentUser = user;
+            localStorage.setItem('user', JSON.stringify(user));
+            location.reload();
+        }
+
+        function start() {
+            if(!currentUser) return;
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('app-interface').style.display = 'block';
+            document.getElementById('myPic').src = currentUser.profilePic;
+            loadUsers();
+        }
+
+        function loadUsers() {
+            onValue(ref(db, 'users'), (snap) => {
+                const list = document.getElementById('users-list');
+                list.innerHTML = "";
+                snap.forEach(c => {
+                    const u = c.val();
+                    if(u.id !== currentUser.id) {
+                        const div = document.createElement('div');
+                        div.className = 'chat-item';
+                        div.innerHTML = `<img src="${u.profilePic}"><div><h4>${u.username}</h4><small>Online</small></div>`;
+                        div.onclick = () => openInbox(u);
+                        list.appendChild(div);
+                    }
+                });
             });
-        });
-    }
+        }
 
-    window.openInbox = (user) => {
-        document.getElementById('users-page').classList.add('hidden');
-        document.getElementById('inbox-page').classList.remove('hidden');
-        document.getElementById('pName').innerText = user.username;
-        document.getElementById('pPic').src = user.profilePic;
-        const ids = [currentUser.id, user.id].sort();
-        currentChatId = ids[0] + '_' + ids[1];
-        
-        if(msgListener) msgListener();
-        msgListener = onValue(ref(db, 'chats/'+currentChatId), (snap) => {
-            const box = document.getElementById('chat-box');
-            box.innerHTML = "";
-            snap.forEach(c => {
-                const m = c.val();
-                const isSent = m.sender === currentUser.id;
-                const d = document.createElement('div');
-                d.className = `message-wrapper ${isSent ? 'sent' : 'received'}`;
-                d.innerHTML = `${!isSent ? `<img src="${user.profilePic}" class="message-avatar">`:''}<div class="message-bubble ${isSent?'sent':'received'}">${m.text}</div>`;
-                box.appendChild(d);
+        window.openInbox = (user) => {
+            document.getElementById('users-page').classList.add('hidden');
+            document.getElementById('inbox-page').classList.remove('hidden');
+            document.getElementById('pName').innerText = user.username;
+            document.getElementById('pPic').src = user.profilePic;
+            const ids = [currentUser.id, user.id].sort();
+            currentChatId = ids[0] + '_' + ids[1];
+            
+            if(msgListener) msgListener();
+            msgListener = onValue(ref(db, 'chats/'+currentChatId), (snap) => {
+                const box = document.getElementById('chat-box');
+                box.innerHTML = "";
+                snap.forEach(c => {
+                    const m = c.val();
+                    const isSent = m.sender === currentUser.id;
+                    const d = document.createElement('div');
+                    d.className = `message-wrapper ${isSent ? 'sent' : 'received'}`;
+                    d.innerHTML = `${!isSent ? `<img src="${user.profilePic}" class="message-avatar">`:''}<div class="message-bubble ${isSent?'sent':'received'}">${m.text}</div>`;
+                    box.appendChild(d);
+                });
+                box.scrollTop = box.scrollHeight;
             });
-            box.scrollTop = box.scrollHeight;
-        });
-    }
+        }
 
-    window.sendMessage = async () => {
-        const input = document.getElementById('messageInput');
-        if(!input.value.trim()) return;
-        await push(ref(db, 'chats/'+currentChatId), { sender: currentUser.id, text: input.value, timestamp: Date.now() });
-        input.value = "";
-    }
+        window.sendMessage = async () => {
+            const input = document.getElementById('messageInput');
+            if(!input.value.trim()) return;
+            await push(ref(db, 'chats/'+currentChatId), { sender: currentUser.id, text: input.value, timestamp: Date.now() });
+            input.value = "";
+        }
 
-    window.openSettings = () => {
-        document.getElementById('settings-modal').style.display = 'flex';
-        document.getElementById('editName').value = currentUser.username;
-        document.getElementById('editPreview').src = currentUser.profilePic;
-        selectedPic = currentUser.profilePic;
-        const gal = document.getElementById('profileGallery');
-        gal.innerHTML = "";
-        avatars.forEach(a => {
-            const img = document.createElement('img');
-            img.src = a;
-            img.className = 'gallery-item' + (a === selectedPic ? ' selected':'');
-            img.onclick = () => {
-                selectedPic = a;
-                document.getElementById('editPreview').src = a;
-                document.querySelectorAll('.gallery-item').forEach(i => i.classList.remove('selected'));
-                img.classList.add('selected');
-            };
-            gal.appendChild(img);
-        });
-    }
+        window.openSettings = () => {
+            document.getElementById('settings-modal').style.display = 'flex';
+            document.getElementById('editName').value = currentUser.username;
+            document.getElementById('editPreview').src = currentUser.profilePic;
+            selectedPic = currentUser.profilePic;
+            const gal = document.getElementById('profileGallery');
+            gal.innerHTML = "";
+            avatars.forEach(a => {
+                const img = document.createElement('img');
+                img.src = a;
+                img.className = 'gallery-item' + (a === selectedPic ? ' selected':'');
+                img.onclick = () => {
+                    selectedPic = a;
+                    document.getElementById('editPreview').src = a;
+                    document.querySelectorAll('.gallery-item').forEach(i => i.classList.remove('selected'));
+                    img.classList.add('selected');
+                };
+                gal.appendChild(img);
+            });
+        }
 
-    window.saveProfile = async () => {
-        const name = document.getElementById('editName').value;
-        await update(ref(db, 'users/'+currentUser.id), { username: name, profilePic: selectedPic });
-        currentUser.username = name;
-        currentUser.profilePic = selectedPic;
-        localStorage.setItem('user', JSON.stringify(currentUser));
-        document.getElementById('myPic').src = selectedPic;
-        closeSettings();
-    }
+        window.saveProfile = async () => {
+            const name = document.getElementById('editName').value;
+            await update(ref(db, 'users/'+currentUser.id), { username: name, profilePic: selectedPic });
+            currentUser.username = name;
+            currentUser.profilePic = selectedPic;
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            document.getElementById('myPic').src = selectedPic;
+            closeSettings();
+        }
 
-    window.closeSettings = () => document.getElementById('settings-modal').style.display = 'none';
-    window.closeInbox = () => { document.getElementById('inbox-page').classList.add('hidden'); document.getElementById('users-page').classList.remove('hidden'); }
-    window.logout = () => { localStorage.clear(); location.reload(); }
+        window.closeSettings = () => document.getElementById('settings-modal').style.display = 'none';
+        window.closeInbox = () => { document.getElementById('inbox-page').classList.add('hidden'); document.getElementById('users-page').classList.remove('hidden'); }
+        window.logout = () => { localStorage.clear(); location.reload(); }
 
-    if(currentUser) start();
-</script>
+        // Start the app
+        start();
+    </script>
+</body>
+</html>
