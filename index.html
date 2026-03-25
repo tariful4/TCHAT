@@ -61,10 +61,10 @@
         .big-prof-pic { width: 110px; height: 110px; border-radius: 50%; border: 3px solid #8c442c; object-fit: cover; }
         .cam-icon { position: absolute; bottom: 5px; right: 5px; background: #8c442c; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #111; cursor: pointer; }
         
-        /* Message Button */
+        /* Profile Message Button */
         #msg-btn-prof { display: none; margin: 15px auto 0; padding: 8px 25px; background: #0084ff; color: white; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; }
 
-        /* Floating Button */
+        /* Floating Chat Button */
         #chat-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #8c442c; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 500; cursor: pointer; }
 
         /* Chat UI */
@@ -137,6 +137,7 @@
                     <i id="edit-name-icon" class="fas fa-pen" style="margin-left: 10px; color:#8c442c; cursor:pointer;" onclick="changeName()"></i>
                 </div>
                 <button id="msg-btn-prof">Message</button>
+                <p id="prof-tip" style="font-size: 13px; color: #8c442c; margin-top: 5px;"></p>
             </div>
             <div id="user-posts-container"></div>
         </div>
@@ -190,6 +191,27 @@
         let currentChatId = null;
         const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
+        // --- BACK BUTTON LOGIC ---
+        window.addEventListener('popstate', function (event) {
+            const inbox = document.getElementById('inbox-page');
+            const users = document.getElementById('users-page');
+            const profile = document.getElementById('profile-page');
+
+            if (!inbox.classList.contains('hidden')) {
+                closeInbox();
+            } else if (!users.classList.contains('hidden')) {
+                closeChatList();
+            } else if (!profile.classList.contains('hidden')) {
+                showNewsfeed();
+            }
+        });
+
+        function pushState() {
+            if (window.history.state !== "app") {
+                history.pushState("app", "");
+            }
+        }
+
         // --- AUTH ---
         window.toggleAuth = (reg) => {
             document.getElementById('login-form').style.display = reg ? 'none' : 'block';
@@ -215,95 +237,115 @@
             if(found) loginOk(found); else alert("Invalid login!");
         }
 
-        function loginOk(user) { localStorage.setItem('user', JSON.stringify(user)); location.reload(); }
+        function loginOk(user) {
+            localStorage.setItem('user', JSON.stringify(user));
+            location.reload();
+        }
+
         window.logout = () => { localStorage.clear(); location.reload(); }
 
-        // --- PROFILE LOGIC ---
-        window.uploadPhoto = (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const base64Img = e.target.result;
-                await update(ref(db, 'users/' + currentUser.id), { profilePic: base64Img });
-                currentUser.profilePic = base64Img;
-                localStorage.setItem('user', JSON.stringify(currentUser));
-                document.getElementById('profPic').src = base64Img;
-                document.getElementById('myPic').src = base64Img;
-                document.getElementById('postMyPic').src = base64Img;
-                alert("Updated!");
-            };
-            reader.readAsDataURL(file);
-        };
-
-        window.changeName = async () => {
-            const newName = prompt("New name:", currentUser.username);
-            if (newName && newName.trim() !== "") {
-                await update(ref(db, 'users/' + currentUser.id), { username: newName.trim() });
-                currentUser.username = newName.trim();
-                localStorage.setItem('user', JSON.stringify(currentUser));
-                document.getElementById('profName').innerText = newName.trim();
-            }
-        };
-
-        // --- POSTS ---
+        // --- COMMON POST HTML RENDERER ---
         function generatePostHTML(p) {
+            const likeCount = p.likes ? Object.keys(p.likes).length : 0;
+            const cmtCount = p.comments ? Object.keys(p.comments).length : 0;
             const isLiked = p.likes && p.likes[currentUser.id];
+
             let cmtHtml = "";
             if(p.comments) {
                 Object.keys(p.comments).forEach(cid => {
                     const c = p.comments[cid];
-                    cmtHtml += `<div class="comment-item"><span class="comment-user">${c.name}:</span> ${c.text}</div>`;
+                    const isMyCmt = c.uid === currentUser.id;
+                    cmtHtml += `
+                    <div class="comment-item">
+                        <span class="comment-user">${c.name}:</span> ${c.text}
+                        ${isMyCmt ? `
+                        <div class="cmt-actions">
+                            <i class="fas fa-edit" onclick="editComment('${p.id}', '${cid}', '${c.text}')"></i>
+                            <i class="fas fa-trash" onclick="deleteComment('${p.id}', '${cid}')"></i>
+                        </div>` : ''}
+                    </div>`;
                 });
             }
+
             return `
             <div class="post-card">
                 <div class="post-header">
                     <img src="${p.pic || defaultPic}" class="post-avatar" onclick="visitProfile('${p.uid}')">
-                    <div><div class="post-user">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>
+                    <div><div class="post-user" onclick="visitProfile('${p.uid}')">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>
                     ${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}
                 </div>
                 <div class="post-content">${p.text}</div>
+                <div class="post-stats"><span><i class="fas fa-thumbs-up"></i> ${likeCount} Reactions</span><span>${cmtCount} Comments</span></div>
                 <div class="post-actions">
-                    <span class="${isLiked?'liked':''}" onclick="toggleLike('${p.id}')">Like</span>
-                    <span onclick="showComments('${p.id}')">Comment</span>
+                    <span class="${isLiked?'liked':''}" onclick="toggleLike('${p.id}')"><i class="fas fa-thumbs-up"></i> Like</span>
+                    <span onclick="showComments('${p.id}')"><i class="fas fa-comment"></i> Comment</span>
                 </div>
                 <div class="comment-section" id="comments-${p.id}">
                     <div id="comment-list-${p.id}">${cmtHtml}</div>
                     <div class="comment-input-row">
-                        <input type="text" id="cmt-inp-${p.id}" placeholder="Comment...">
-                        <button onclick="addComment('${p.id}')">Send</button>
+                        <input type="text" id="cmt-inp-${p.id}" placeholder="Write a comment...">
+                        <i class="fas fa-paper-plane" style="color:#8c442c; margin-top:5px;" onclick="addComment('${p.id}')"></i>
                     </div>
                 </div>
             </div>`;
         }
 
+        // --- POSTS ---
         window.createPost = async () => {
             const txt = document.getElementById('postText').value.trim();
             if(!txt) return;
-            await push(ref(db, 'posts'), { uid: currentUser.id, name: currentUser.username, pic: currentUser.profilePic || defaultPic, text: txt, timestamp: Date.now() });
+            const postData = {
+                uid: currentUser.id,
+                name: currentUser.username,
+                pic: currentUser.profilePic || defaultPic,
+                text: txt,
+                timestamp: Date.now()
+            };
+            await push(ref(db, 'posts'), postData);
             document.getElementById('postText').value = "";
         }
 
         window.toggleLike = async (pid) => {
             const postRef = ref(db, `posts/${pid}/likes/${currentUser.id}`);
             const snap = await get(postRef);
-            if(snap.exists()) await remove(postRef); else await set(postRef, true);
+            if(snap.exists()) await remove(postRef);
+            else await set(postRef, true);
         }
 
-        window.showComments = (pid) => { 
-            const el = document.getElementById(`comments-${pid}`); 
-            el.style.display = el.style.display === 'block' ? 'none' : 'block'; 
+        window.showComments = (pid) => {
+            const el = document.getElementById(`comments-${pid}`);
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
         }
 
         window.addComment = async (pid) => {
             const inp = document.getElementById(`cmt-inp-${pid}`);
-            if(!inp.value.trim()) return;
-            await push(ref(db, `posts/${pid}/comments`), { uid: currentUser.id, name: currentUser.username, text: inp.value.trim() });
+            const txt = inp.value.trim();
+            if(!txt) return;
+            await push(ref(db, `posts/${pid}/comments`), {
+                uid: currentUser.id,
+                name: currentUser.username,
+                text: txt,
+                timestamp: Date.now()
+            });
             inp.value = "";
         }
 
-        window.deletePost = (pid) => { if(confirm("Delete?")) remove(ref(db, 'posts/' + pid)); }
+        window.deleteComment = (pid, cid) => {
+            if(confirm("Delete this comment?")) {
+                remove(ref(db, `posts/${pid}/comments/${cid}`));
+            }
+        }
+
+        window.editComment = async (pid, cid, oldText) => {
+            const newText = prompt("Edit your comment:", oldText);
+            if(newText && newText.trim() !== "" && newText !== oldText) {
+                await update(ref(db, `posts/${pid}/comments/${cid}`), { text: newText.trim() });
+            }
+        }
+
+        window.deletePost = (pid) => {
+            if(confirm("Delete this post?")) remove(ref(db, 'posts/' + pid));
+        }
 
         function loadPosts() {
             onValue(ref(db, 'posts'), (snap) => {
@@ -311,31 +353,62 @@
                 feed.innerHTML = "";
                 let posts = [];
                 snap.forEach(c => { posts.push({id: c.key, ...c.val()}); });
-                posts.reverse().forEach(p => { feed.innerHTML += generatePostHTML(p); });
+                posts.reverse().forEach(p => {
+                    feed.innerHTML += generatePostHTML(p);
+                });
             });
         }
 
-        // --- NAVIGATION ---
+        // --- PROFILE NAVIGATION ---
         window.visitProfile = async (uid) => {
             const snap = await get(ref(db, 'users/' + uid));
             if(!snap.exists()) return;
             const userData = snap.val();
+            pushState();
+            
             document.getElementById('newsfeed-page').classList.add('hidden');
             document.getElementById('profile-page').classList.remove('hidden');
+            
             document.getElementById('profPic').src = userData.profilePic || defaultPic;
             document.getElementById('profName').innerText = userData.username;
+            
             const isMe = uid === currentUser.id;
             document.getElementById('cam-label').style.display = isMe ? 'flex' : 'none';
             document.getElementById('edit-name-icon').style.display = isMe ? 'block' : 'none';
-            document.getElementById('msg-btn-prof').style.display = isMe ? 'none' : 'block';
-            if(!isMe) document.getElementById('msg-btn-prof').onclick = () => openInbox(userData);
+            document.getElementById('prof-tip').innerText = isMe ? "Tap camera to change photo" : "";
+
+            const msgBtn = document.getElementById('msg-btn-prof');
+            if(!isMe) {
+                msgBtn.style.display = 'block';
+                msgBtn.onclick = () => openInbox(userData);
+            } else {
+                msgBtn.style.display = 'none';
+            }
+
+            // Real-time listener for profile posts to ensure comments work
+            onValue(ref(db, 'posts'), (snap) => {
+                const userFeed = document.getElementById('user-posts-container');
+                userFeed.innerHTML = "";
+                let posts = [];
+                snap.forEach(c => { 
+                    const p = c.val();
+                    if(p.uid === uid) posts.push({id: c.key, ...p}); 
+                });
+                posts.reverse().forEach(p => {
+                    userFeed.innerHTML += generatePostHTML(p);
+                });
+            });
         }
 
         window.showMyProfile = () => visitProfile(currentUser.id);
-        window.showNewsfeed = () => { document.getElementById('profile-page').classList.add('hidden'); document.getElementById('newsfeed-page').classList.remove('hidden'); }
+
+        window.showNewsfeed = () => {
+            document.getElementById('profile-page').classList.add('hidden');
+            document.getElementById('newsfeed-page').classList.remove('hidden');
+        }
 
         // --- CHAT ---
-        window.openChatList = () => document.getElementById('users-page').classList.remove('hidden');
+        window.openChatList = () => { pushState(); document.getElementById('users-page').classList.remove('hidden'); }
         window.closeChatList = () => document.getElementById('users-page').classList.add('hidden');
         window.closeInbox = () => document.getElementById('inbox-page').classList.add('hidden');
 
@@ -348,7 +421,7 @@
                     if(u.id !== currentUser.id) {
                         const div = document.createElement('div');
                         div.className = 'chat-item';
-                        div.innerHTML = `<img src="${u.profilePic || defaultPic}"><div><h4>${u.username}</h4></div>`;
+                        div.innerHTML = `<img src="${u.profilePic || defaultPic}"><div><h4>${u.username}</h4><small>Tap to chat</small></div>`;
                         div.onclick = () => openInbox(u);
                         list.appendChild(div);
                     }
@@ -357,7 +430,9 @@
         }
 
         window.openInbox = (user) => {
+            pushState();
             document.getElementById('users-page').classList.add('hidden');
+            document.getElementById('profile-page').classList.add('hidden');
             document.getElementById('inbox-page').classList.remove('hidden');
             document.getElementById('pName').innerText = user.username;
             document.getElementById('pPic').src = user.profilePic || defaultPic;
@@ -378,7 +453,7 @@
         window.sendMessage = async () => {
             const input = document.getElementById('messageInput');
             if(!input.value.trim()) return;
-            await push(ref(db, 'chats/'+currentChatId), { sender: currentUser.id, text: input.value });
+            await push(ref(db, 'chats/'+currentChatId), { sender: currentUser.id, text: input.value, timestamp: Date.now() });
             input.value = "";
         }
 
@@ -388,16 +463,17 @@
             document.getElementById('app-interface').style.display = 'flex';
             document.getElementById('myPic').src = currentUser.profilePic || defaultPic;
             document.getElementById('postMyPic').src = currentUser.profilePic || defaultPic;
-            loadPosts(); loadUsers();
+            loadPosts();
+            loadUsers();
         }
 
-        // Bind global functions
-        window.uploadPhoto = uploadPhoto;
-        window.changeName = changeName;
+        // Global Bindings - crucial for onclick in HTML strings
         window.visitProfile = visitProfile;
         window.toggleLike = toggleLike;
         window.showComments = showComments;
         window.addComment = addComment;
+        window.deleteComment = deleteComment;
+        window.editComment = editComment;
         window.showMyProfile = showMyProfile;
         window.showNewsfeed = showNewsfeed;
         window.createPost = createPost;
