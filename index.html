@@ -244,6 +244,40 @@
 
         window.logout = () => { localStorage.clear(); location.reload(); }
 
+        // --- PHOTO UPLOAD & PROFILE UPDATE FIX ---
+        window.uploadPhoto = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const imageData = e.target.result;
+                try {
+                    await update(ref(db, 'users/' + currentUser.id), { profilePic: imageData });
+                    currentUser.profilePic = imageData;
+                    localStorage.setItem('user', JSON.stringify(currentUser));
+                    
+                    document.getElementById('profPic').src = imageData;
+                    document.getElementById('myPic').src = imageData;
+                    document.getElementById('postMyPic').src = imageData;
+                    alert("Profile picture updated!");
+                } catch (err) {
+                    alert("Error updating photo.");
+                }
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.changeName = async () => {
+            const newName = prompt("Enter new name:", currentUser.username);
+            if (newName && newName.trim() !== "" && newName !== currentUser.username) {
+                await update(ref(db, 'users/' + currentUser.id), { username: newName.trim() });
+                currentUser.username = newName.trim();
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                location.reload();
+            }
+        };
+
         // --- COMMON POST HTML RENDERER ---
         function generatePostHTML(p) {
             const likeCount = p.likes ? Object.keys(p.likes).length : 0;
@@ -385,7 +419,6 @@
                 msgBtn.style.display = 'none';
             }
 
-            // Real-time listener for profile posts to ensure comments work
             onValue(ref(db, 'posts'), (snap) => {
                 const userFeed = document.getElementById('user-posts-container');
                 userFeed.innerHTML = "";
@@ -467,7 +500,7 @@
             loadUsers();
         }
 
-        // Global Bindings - crucial for onclick in HTML strings
+        // Global Bindings
         window.visitProfile = visitProfile;
         window.toggleLike = toggleLike;
         window.showComments = showComments;
