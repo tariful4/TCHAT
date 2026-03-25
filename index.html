@@ -28,7 +28,7 @@
         /* Post Creation */
         .create-post { background: #111; padding: 15px; border-bottom: 8px solid #222; }
         .post-input-row { display: flex; gap: 10px; }
-        .post-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid #333; }
+        .post-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid #333; cursor: pointer; }
         #postText { flex: 1; background: #222; border: none; border-radius: 20px; padding: 10px 15px; color: white; outline: none; }
         .post-btn { background: #8c442c; color: white; border: none; padding: 8px 20px; border-radius: 20px; margin-top: 10px; float: right; font-weight: bold; cursor: pointer; }
 
@@ -174,8 +174,8 @@
         }
 
         window.register = async () => {
-            const ep = document.getElementById('regEmailPhone').value;
-            const ps = document.getElementById('regPass').value;
+            const ep = document.getElementById('regEmailPhone').value.trim();
+            const ps = document.getElementById('regPass').value.trim();
             if(!ep || !ps) return alert("Fill all fields");
             const id = 'user_' + Date.now();
             const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
@@ -184,8 +184,8 @@
         }
 
         window.login = async () => {
-            const ep = document.getElementById('loginEmailPhone').value;
-            const ps = document.getElementById('loginPass').value;
+            const ep = document.getElementById('loginEmailPhone').value.trim();
+            const ps = document.getElementById('loginPass').value.trim();
             const snap = await get(ref(db, 'users'));
             let found = null;
             snap.forEach(c => { if(c.val().emailPhone === ep && c.val().password === ps) found = c.val(); });
@@ -199,39 +199,29 @@
 
         window.logout = () => { localStorage.clear(); location.reload(); }
 
-        // --- GALLERY PHOTO UPDATE ---
+        // --- PHOTO UPDATE ---
         window.uploadPhoto = (event) => {
             const file = event.target.files[0];
             if(!file) return;
-
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const base64Pic = e.target.result;
-                
-                // Update UI immediately
-                document.getElementById('profPic').src = base64Pic;
-                document.getElementById('myPic').src = base64Pic;
-                document.getElementById('postMyPic').src = base64Pic;
-
-                // Update Database
                 await update(ref(db, 'users/' + currentUser.id), { profilePic: base64Pic });
-
-                // Update Local Session
                 currentUser.profilePic = base64Pic;
                 localStorage.setItem('user', JSON.stringify(currentUser));
-                alert("Profile Photo Updated!");
+                location.reload(); 
             };
             reader.readAsDataURL(file);
         }
 
-        // --- NEWSFEED & POSTS ---
+        // --- POSTS ---
         window.createPost = async () => {
             const txt = document.getElementById('postText').value.trim();
             if(!txt) return;
             const postData = {
                 uid: currentUser.id,
                 name: currentUser.username,
-                pic: currentUser.profilePic, // Current profile pic at time of post
+                pic: currentUser.profilePic || defaultPic,
                 text: txt,
                 timestamp: Date.now()
             };
@@ -239,43 +229,32 @@
             document.getElementById('postText').value = "";
         }
 
+        window.deletePost = (pid) => { if(confirm("Delete this post?")) remove(ref(db, 'posts/'+pid)); }
+
         function loadPosts() {
             onValue(ref(db, 'posts'), (snap) => {
                 const feed = document.getElementById('feed-container');
                 const userFeed = document.getElementById('user-posts-container');
                 feed.innerHTML = ""; userFeed.innerHTML = "";
-                
                 let posts = [];
                 snap.forEach(c => { posts.push({id: c.key, ...c.val()}); });
-                posts.reverse(); 
-
-                posts.forEach(p => {
-                    const postHtml = `
-                        <div class="post-card">
-                            <div class="post-header">
-                                <img src="${p.pic || defaultPic}" class="post-avatar">
-                                <div>
-                                    <div class="post-user">${p.name}</div>
-                                    <div class="post-time">${new Date(p.timestamp).toLocaleString()}</div>
-                                </div>
-                                ${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}
-                            </div>
-                            <div class="post-content">${p.text}</div>
-                            <div class="post-actions">
-                                <span><i class="far fa-heart"></i> Like</span>
-                                <span><i class="far fa-comment"></i> Comment</span>
-                            </div>
-                        </div>`;
-                    
-                    feed.innerHTML += postHtml;
-                    if(p.uid === currentUser.id) userFeed.innerHTML += postHtml;
+                posts.reverse().forEach(p => {
+                    const html = `<div class="post-card">
+                        <div class="post-header">
+                            <img src="${p.pic}" class="post-avatar">
+                            <div><div class="post-user">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>
+                            ${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}
+                        </div>
+                        <div class="post-content">${p.text}</div>
+                        <div class="post-actions"><span><i class="far fa-heart"></i> Like</span><span><i class="far fa-comment"></i> Comment</span></div>
+                    </div>`;
+                    feed.innerHTML += html;
+                    if(p.uid === currentUser.id) userFeed.innerHTML += html;
                 });
             });
         }
 
-        window.deletePost = (pid) => { if(confirm("Delete this post?")) remove(ref(db, 'posts/'+pid)); }
-
-        // --- NAVIGATION ---
+        // --- NAVIGATION FIXED ---
         window.showProfile = () => {
             document.getElementById('newsfeed-page').classList.add('hidden');
             document.getElementById('profile-page').classList.remove('hidden');
@@ -288,7 +267,7 @@
             document.getElementById('newsfeed-page').classList.remove('hidden');
         }
 
-        // --- CHAT LOGIC ---
+        // --- CHAT ---
         window.openChatList = () => document.getElementById('users-page').classList.remove('hidden');
         window.closeChatList = () => document.getElementById('users-page').classList.add('hidden');
         window.closeInbox = () => document.getElementById('inbox-page').classList.add('hidden');
@@ -316,17 +295,13 @@
             document.getElementById('pPic').src = user.profilePic || defaultPic;
             const ids = [currentUser.id, user.id].sort();
             currentChatId = ids[0] + '_' + ids[1];
-            
             onValue(ref(db, 'chats/'+currentChatId), (snap) => {
                 const box = document.getElementById('chat-box');
                 box.innerHTML = "";
                 snap.forEach(c => {
                     const m = c.val();
                     const isSent = m.sender === currentUser.id;
-                    box.innerHTML += `
-                        <div class="message-wrapper ${isSent ? 'sent' : 'received'}">
-                            <div class="message-bubble ${isSent?'sent':'received'}">${m.text}</div>
-                        </div>`;
+                    box.innerHTML += `<div class="message-wrapper ${isSent?'sent':'received'}"><div class="message-bubble ${isSent?'sent':'received'}">${m.text}</div></div>`;
                 });
                 box.scrollTop = box.scrollHeight;
             });
@@ -339,7 +314,7 @@
             input.value = "";
         }
 
-        // --- START APP ---
+        // --- INIT ---
         if(currentUser) {
             document.getElementById('auth-container').style.display = 'none';
             document.getElementById('app-interface').style.display = 'flex';
@@ -348,6 +323,10 @@
             loadPosts();
             loadUsers();
         }
+
+        // Global Assignment for HTML onclicks
+        window.showProfile = showProfile;
+        window.showNewsfeed = showNewsfeed;
     </script>
 </body>
 </html>
