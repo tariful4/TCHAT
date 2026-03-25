@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TCHAT2.0</title>
+    <title>TCHAT 2.0</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
@@ -49,7 +49,6 @@
         .profile-pic-wrapper { position: relative; display: inline-block; }
         .big-prof-pic { width: 110px; height: 110px; border-radius: 50%; border: 3px solid #8c442c; object-fit: cover; }
         .cam-icon { position: absolute; bottom: 5px; right: 5px; background: #8c442c; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #111; cursor: pointer; }
-        .edit-name-icon { font-size: 16px; color: #8c442c; cursor: pointer; margin-left: 10px; }
 
         /* Chat UI */
         #users-page, #inbox-page { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; display: flex; flex-direction: column; }
@@ -114,7 +113,7 @@
                 </div>
                 <div style="display: flex; align-items: center; justify-content: center; margin-top:15px;">
                     <h3 id="profName" style="font-size: 22px;">Name</h3>
-                    <i class="fas fa-pen edit-name-icon" onclick="changeName()"></i>
+                    <i class="fas fa-pen" style="margin-left: 10px; color:#8c442c; cursor:pointer;" onclick="changeName()"></i>
                 </div>
                 <p style="font-size: 13px; color: #8c442c; margin-top: 5px;">Tap camera to change photo</p>
             </div>
@@ -131,7 +130,7 @@
             <i class="fas fa-arrow-left" onclick="closeChatList()"></i>
             <h2 style="margin-left: 15px; flex: 1;">Messages</h2>
         </div>
-        <div id="users-list" class="conversations"></div>
+        <div id="users-list"></div>
     </div>
 
     <div id="inbox-page" class="hidden">
@@ -140,7 +139,6 @@
             <img id="pPic" class="post-avatar" style="margin-left:15px;" src="">
             <div style="margin-left:12px; flex:1;">
                 <h4 id="pName" style="font-size: 15px;">Name</h4>
-                <small style="color:#4caf50;">Online</small>
             </div>
         </div>
         <div id="chat-box"></div>
@@ -203,34 +201,6 @@
 
         window.logout = () => { localStorage.clear(); location.reload(); }
 
-        // --- PROFILE UPDATES ---
-        window.uploadPhoto = (event) => {
-            const file = event.target.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const base64Pic = e.target.result;
-                await update(ref(db, 'users/' + currentUser.id), { profilePic: base64Pic });
-                currentUser.profilePic = base64Pic;
-                localStorage.setItem('user', JSON.stringify(currentUser));
-                location.reload(); 
-            };
-            reader.readAsDataURL(file);
-        }
-
-        window.changeName = async () => {
-            const newName = prompt("Enter your new name:", currentUser.username);
-            if (newName && newName.trim() !== "") {
-                const trimmedName = newName.trim();
-                await update(ref(db, 'users/' + currentUser.id), { username: trimmedName });
-                currentUser.username = trimmedName;
-                localStorage.setItem('user', JSON.stringify(currentUser));
-                document.getElementById('profName').innerText = trimmedName;
-                alert("Name updated successfully!");
-                location.reload(); // To update name in posts too
-            }
-        }
-
         // --- POSTS ---
         window.createPost = async () => {
             const txt = document.getElementById('postText').value.trim();
@@ -246,7 +216,13 @@
             document.getElementById('postText').value = "";
         }
 
-        window.deletePost = (pid) => { if(confirm("Delete this post?")) remove(ref(db, 'posts/'+pid)); }
+        window.deletePost = (pid) => {
+            if(confirm("Delete this post?")) {
+                remove(ref(db, 'posts/' + pid)).then(() => {
+                    console.log("Post deleted");
+                });
+            }
+        }
 
         function loadPosts() {
             onValue(ref(db, 'posts'), (snap) => {
@@ -256,9 +232,10 @@
                 let posts = [];
                 snap.forEach(c => { posts.push({id: c.key, ...c.val()}); });
                 posts.reverse().forEach(p => {
-                    const html = `<div class="post-card">
+                    const html = `
+                    <div class="post-card">
                         <div class="post-header">
-                            <img src="${p.pic}" class="post-avatar">
+                            <img src="${p.pic || defaultPic}" class="post-avatar">
                             <div><div class="post-user">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>
                             ${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}
                         </div>
@@ -271,7 +248,31 @@
             });
         }
 
-        // --- NAVIGATION ---
+        // --- PROFILE ---
+        window.uploadPhoto = (event) => {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Pic = e.target.result;
+                await update(ref(db, 'users/' + currentUser.id), { profilePic: base64Pic });
+                currentUser.profilePic = base64Pic;
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                location.reload(); 
+            };
+            reader.readAsDataURL(file);
+        }
+
+        window.changeName = async () => {
+            const newName = prompt("Enter new name:", currentUser.username);
+            if(newName) {
+                await update(ref(db, 'users/' + currentUser.id), { username: newName });
+                currentUser.username = newName;
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                location.reload();
+            }
+        }
+
         window.showProfile = () => {
             document.getElementById('newsfeed-page').classList.add('hidden');
             document.getElementById('profile-page').classList.remove('hidden');
@@ -341,8 +342,12 @@
             loadUsers();
         }
 
+        // Binding functions to window for onclick access
+        window.createPost = createPost;
+        window.deletePost = deletePost;
         window.showProfile = showProfile;
         window.showNewsfeed = showNewsfeed;
+        window.changeName = changeName;
     </script>
 </body>
 </html>
