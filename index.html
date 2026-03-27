@@ -9,6 +9,20 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { background: #000; color: white; height: 100vh; overflow: hidden; }
 
+        /* FB Lite Style Loader */
+        #loader-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center;
+        }
+        .dots-loader { display: flex; gap: 8px; }
+        .dots-loader div {
+            width: 12px; height: 12px; background: #8c442c; border-radius: 50%;
+            animation: fb-bounce 0.6s infinite alternate;
+        }
+        .dots-loader div:nth-child(2) { animation-delay: 0.2s; }
+        .dots-loader div:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes fb-bounce { to { transform: translateY(-10px); opacity: 0.3; } }
+
         /* Auth Pages */
         #auth-container { position: fixed; width: 100%; height: 100%; background: linear-gradient(135deg, #000 0%, #1a0c08 100%); z-index: 2000; display: flex; align-items: center; justify-content: center; }
         .auth-card { background: rgba(28,20,16,0.95); padding: 40px 30px; border-radius: 40px; width: 90%; max-width: 380px; text-align: center; border: 1px solid rgba(140,68,44,0.3); }
@@ -50,10 +64,9 @@
         .comment-input-row { display: flex; gap: 8px; margin-bottom: 10px; }
         .comment-input-row input { flex: 1; background: #222; border: none; border-radius: 15px; padding: 5px 12px; color: white; font-size: 13px; outline: none; }
         .comment-item { margin-bottom: 8px; font-size: 13px; display: flex; align-items: flex-start; gap: 5px; }
-        .comment-user { font-weight: bold; color: #8c442c; }
+        .comment-user { font-weight: bold; color: #8c442c; cursor: pointer; }
         .cmt-actions { margin-left: auto; display: flex; gap: 8px; font-size: 11px; opacity: 0.6; }
         .cmt-actions i { cursor: pointer; }
-        .cmt-actions i:hover { opacity: 1; }
 
         /* Profile Update */
         .profile-container { text-align: center; padding: 30px 20px; background: #111; margin-bottom: 10px; border-bottom: 1px solid #333; }
@@ -61,7 +74,6 @@
         .big-prof-pic { width: 110px; height: 110px; border-radius: 50%; border: 3px solid #8c442c; object-fit: cover; }
         .cam-icon { position: absolute; bottom: 5px; right: 5px; background: #8c442c; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #111; cursor: pointer; }
         
-        /* Profile Message Button */
         #msg-btn-prof { display: none; margin: 15px auto 0; padding: 8px 25px; background: #0084ff; color: white; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; }
 
         /* Floating Chat Button */
@@ -82,6 +94,12 @@
     </style>
 </head>
 <body>
+
+    <div id="loader-overlay" class="hidden">
+        <div class="dots-loader">
+            <div></div><div></div><div></div>
+        </div>
+    </div>
 
     <div id="auth-container">
         <div id="login-form" class="auth-card">
@@ -110,7 +128,7 @@
         <div id="newsfeed-page" class="page-content">
             <div class="create-post">
                 <div class="post-input-row">
-                    <img id="postMyPic" class="post-avatar" src="">
+                    <img id="postMyPic" class="post-avatar" src="" onclick="showMyProfile()">
                     <input type="text" id="postText" placeholder="What's on your mind?">
                 </div>
                 <button class="post-btn" onclick="createPost()">Post</button>
@@ -158,9 +176,9 @@
     <div id="inbox-page" class="hidden">
         <div class="header">
             <i class="fas fa-arrow-left" onclick="closeInbox()"></i>
-            <img id="pPic" class="post-avatar" style="margin-left:15px;" src="">
+            <img id="pPic" class="post-avatar" style="margin-left:15px; cursor:pointer;" src="" onclick="visitFromInbox()">
             <div style="margin-left:12px; flex:1;">
-                <h4 id="pName" style="font-size: 15px;">Name</h4>
+                <h4 id="pName" style="font-size: 15px; cursor:pointer;" onclick="visitFromInbox()">Name</h4>
             </div>
         </div>
         <div id="chat-box"></div>
@@ -189,28 +207,27 @@
 
         let currentUser = JSON.parse(localStorage.getItem('user')) || null;
         let currentChatId = null;
+        let activeChatPartner = null; 
         const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
-        // --- BACK BUTTON LOGIC ---
-        window.addEventListener('popstate', function (event) {
+        // --- Loader Logic ---
+        function toggleLoader(show) {
+            const loader = document.getElementById('loader-overlay');
+            if (show) loader.classList.remove('hidden');
+            else loader.classList.add('hidden');
+        }
+
+        // --- Back Button Logic ---
+        window.addEventListener('popstate', () => {
             const inbox = document.getElementById('inbox-page');
             const users = document.getElementById('users-page');
             const profile = document.getElementById('profile-page');
-
-            if (!inbox.classList.contains('hidden')) {
-                closeInbox();
-            } else if (!users.classList.contains('hidden')) {
-                closeChatList();
-            } else if (!profile.classList.contains('hidden')) {
-                showNewsfeed();
-            }
+            if (!inbox.classList.contains('hidden')) closeInbox();
+            else if (!users.classList.contains('hidden')) closeChatList();
+            else if (!profile.classList.contains('hidden')) showNewsfeed();
         });
 
-        function pushState() {
-            if (window.history.state !== "app") {
-                history.pushState("app", "");
-            }
-        }
+        function pushState() { if (window.history.state !== "app") history.pushState("app", ""); }
 
         // --- AUTH ---
         window.toggleAuth = (reg) => {
@@ -218,67 +235,81 @@
             document.getElementById('reg-form').style.display = reg ? 'block' : 'none';
         }
 
-        window.register = async () => {
-            const ep = document.getElementById('regEmailPhone').value.trim();
-            const ps = document.getElementById('regPass').value.trim();
-            if(!ep || !ps) return alert("Fill all fields");
-            const id = 'user_' + Date.now();
-            const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
-            await set(ref(db, 'users/'+id), user);
-            loginOk(user);
-        }
-
         window.login = async () => {
             const ep = document.getElementById('loginEmailPhone').value.trim();
             const ps = document.getElementById('loginPass').value.trim();
+            if(!ep || !ps) return;
+            toggleLoader(true);
             const snap = await get(ref(db, 'users'));
             let found = null;
             snap.forEach(c => { if(c.val().emailPhone === ep && c.val().password === ps) found = c.val(); });
-            if(found) loginOk(found); else alert("Invalid login!");
+            if(found) { localStorage.setItem('user', JSON.stringify(found)); location.reload(); }
+            else { toggleLoader(false); alert("Invalid login!"); }
         }
 
-        function loginOk(user) {
+        window.register = async () => {
+            const ep = document.getElementById('regEmailPhone').value.trim();
+            const ps = document.getElementById('regPass').value.trim();
+            if(!ep || !ps) return;
+            toggleLoader(true);
+            const id = 'user_' + Date.now();
+            const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
+            await set(ref(db, 'users/'+id), user);
             localStorage.setItem('user', JSON.stringify(user));
             location.reload();
         }
 
         window.logout = () => { localStorage.clear(); location.reload(); }
 
-        // --- PHOTO UPLOAD & PROFILE UPDATE FIX ---
-        window.uploadPhoto = (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
+        // --- PROFILE LOGIC ---
+        window.visitProfile = async (uid) => {
+            toggleLoader(true);
+            const snap = await get(ref(db, 'users/' + uid));
+            if(!snap.exists()) { toggleLoader(false); return; }
+            const userData = snap.val();
+            pushState();
+            
+            // Hide other pages
+            document.getElementById('newsfeed-page').classList.add('hidden');
+            document.getElementById('users-page').classList.add('hidden');
+            document.getElementById('inbox-page').classList.add('hidden');
+            document.getElementById('profile-page').classList.remove('hidden');
+            
+            document.getElementById('profPic').src = userData.profilePic || defaultPic;
+            document.getElementById('profName').innerText = userData.username;
+            
+            const isMe = uid === currentUser.id;
+            document.getElementById('cam-label').style.display = isMe ? 'flex' : 'none';
+            document.getElementById('edit-name-icon').style.display = isMe ? 'block' : 'none';
 
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const imageData = e.target.result;
-                try {
-                    await update(ref(db, 'users/' + currentUser.id), { profilePic: imageData });
-                    currentUser.profilePic = imageData;
-                    localStorage.setItem('user', JSON.stringify(currentUser));
-                    
-                    document.getElementById('profPic').src = imageData;
-                    document.getElementById('myPic').src = imageData;
-                    document.getElementById('postMyPic').src = imageData;
-                    alert("Profile picture updated!");
-                } catch (err) {
-                    alert("Error updating photo.");
-                }
-            };
-            reader.readAsDataURL(file);
-        };
+            const msgBtn = document.getElementById('msg-btn-prof');
+            if(!isMe) {
+                msgBtn.style.display = 'block';
+                msgBtn.onclick = () => openInbox(userData);
+            } else msgBtn.style.display = 'none';
 
-        window.changeName = async () => {
-            const newName = prompt("Enter new name:", currentUser.username);
-            if (newName && newName.trim() !== "" && newName !== currentUser.username) {
-                await update(ref(db, 'users/' + currentUser.id), { username: newName.trim() });
-                currentUser.username = newName.trim();
-                localStorage.setItem('user', JSON.stringify(currentUser));
-                location.reload();
-            }
-        };
+            // Real-time load posts for this profile
+            onValue(ref(db, 'posts'), (snap) => {
+                const userFeed = document.getElementById('user-posts-container');
+                userFeed.innerHTML = "";
+                let posts = [];
+                snap.forEach(c => { 
+                    const p = c.val();
+                    if(p.uid === uid) posts.push({id: c.key, ...p}); 
+                });
+                posts.reverse().forEach(p => { userFeed.innerHTML += generatePostHTML(p); });
+                toggleLoader(false);
+            });
+        }
 
-        // --- COMMON POST HTML RENDERER ---
+        window.showMyProfile = () => visitProfile(currentUser.id);
+        window.showNewsfeed = () => {
+            document.getElementById('profile-page').classList.add('hidden');
+            document.getElementById('newsfeed-page').classList.remove('hidden');
+        }
+        window.visitFromInbox = () => { if(activeChatPartner) visitProfile(activeChatPartner.id); }
+
+        // --- POST & ACTIONS ---
         function generatePostHTML(p) {
             const likeCount = p.likes ? Object.keys(p.likes).length : 0;
             const cmtCount = p.comments ? Object.keys(p.comments).length : 0;
@@ -288,13 +319,11 @@
             if(p.comments) {
                 Object.keys(p.comments).forEach(cid => {
                     const c = p.comments[cid];
-                    const isMyCmt = c.uid === currentUser.id;
                     cmtHtml += `
                     <div class="comment-item">
-                        <span class="comment-user">${c.name}:</span> ${c.text}
-                        ${isMyCmt ? `
+                        <span class="comment-user" onclick="visitProfile('${c.uid}')">${c.name}:</span> ${c.text}
+                        ${c.uid === currentUser.id ? `
                         <div class="cmt-actions">
-                            <i class="fas fa-edit" onclick="editComment('${p.id}', '${cid}', '${c.text}')"></i>
                             <i class="fas fa-trash" onclick="deleteComment('${p.id}', '${cid}')"></i>
                         </div>` : ''}
                     </div>`;
@@ -309,7 +338,7 @@
                     ${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}
                 </div>
                 <div class="post-content">${p.text}</div>
-                <div class="post-stats"><span><i class="fas fa-thumbs-up"></i> ${likeCount} Reactions</span><span>${cmtCount} Comments</span></div>
+                <div class="post-stats"><span><i class="fas fa-thumbs-up"></i> ${likeCount}</span><span>${cmtCount} Comments</span></div>
                 <div class="post-actions">
                     <span class="${isLiked?'liked':''}" onclick="toggleLike('${p.id}')"><i class="fas fa-thumbs-up"></i> Like</span>
                     <span onclick="showComments('${p.id}')"><i class="fas fa-comment"></i> Comment</span>
@@ -318,37 +347,29 @@
                     <div id="comment-list-${p.id}">${cmtHtml}</div>
                     <div class="comment-input-row">
                         <input type="text" id="cmt-inp-${p.id}" placeholder="Write a comment...">
-                        <i class="fas fa-paper-plane" style="color:#8c442c; margin-top:5px;" onclick="addComment('${p.id}')"></i>
+                        <i class="fas fa-paper-plane" onclick="addComment('${p.id}')" style="color:#8c442c; margin-top:5px; cursor:pointer;"></i>
                     </div>
                 </div>
             </div>`;
         }
 
-        // --- POSTS ---
         window.createPost = async () => {
             const txt = document.getElementById('postText').value.trim();
             if(!txt) return;
-            const postData = {
-                uid: currentUser.id,
-                name: currentUser.username,
+            toggleLoader(true);
+            await push(ref(db, 'posts'), {
+                uid: currentUser.id, name: currentUser.username,
                 pic: currentUser.profilePic || defaultPic,
-                text: txt,
-                timestamp: Date.now()
-            };
-            await push(ref(db, 'posts'), postData);
+                text: txt, timestamp: Date.now()
+            });
             document.getElementById('postText').value = "";
+            toggleLoader(false);
         }
 
         window.toggleLike = async (pid) => {
             const postRef = ref(db, `posts/${pid}/likes/${currentUser.id}`);
             const snap = await get(postRef);
-            if(snap.exists()) await remove(postRef);
-            else await set(postRef, true);
-        }
-
-        window.showComments = (pid) => {
-            const el = document.getElementById(`comments-${pid}`);
-            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+            if(snap.exists()) await remove(postRef); else await set(postRef, true);
         }
 
         window.addComment = async (pid) => {
@@ -356,96 +377,103 @@
             const txt = inp.value.trim();
             if(!txt) return;
             await push(ref(db, `posts/${pid}/comments`), {
-                uid: currentUser.id,
-                name: currentUser.username,
-                text: txt,
-                timestamp: Date.now()
+                uid: currentUser.id, name: currentUser.username, text: txt, timestamp: Date.now()
             });
             inp.value = "";
         }
 
-        window.deleteComment = (pid, cid) => {
-            if(confirm("Delete this comment?")) {
-                remove(ref(db, `posts/${pid}/comments/${cid}`));
+        window.showComments = (pid) => {
+            const el = document.getElementById(`comments-${pid}`);
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        }
+
+        window.deletePost = (pid) => { if(confirm("Delete this post?")) remove(ref(db, 'posts/' + pid)); }
+        window.deleteComment = (pid, cid) => { if(confirm("Delete comment?")) remove(ref(db, `posts/${pid}/comments/${cid}`)); }
+
+        // --- CHAT ---
+        window.openChatList = () => { pushState(); document.getElementById('users-page').classList.remove('hidden'); }
+        window.closeChatList = () => document.getElementById('users-page').classList.add('hidden');
+        window.closeInbox = () => { document.getElementById('inbox-page').classList.add('hidden'); activeChatPartner = null; }
+
+        window.openInbox = (user) => {
+            toggleLoader(true);
+            activeChatPartner = user;
+            pushState();
+            document.getElementById('users-page').classList.add('hidden');
+            document.getElementById('profile-page').classList.add('hidden');
+            document.getElementById('inbox-page').classList.remove('hidden');
+            document.getElementById('pName').innerText = user.username;
+            document.getElementById('pPic').src = user.profilePic || defaultPic;
+            
+            const ids = [currentUser.id, user.id].sort();
+            currentChatId = ids[0] + '_' + ids[1];
+            
+            onValue(ref(db, 'chats/'+currentChatId), (snap) => {
+                const box = document.getElementById('chat-box');
+                box.innerHTML = "";
+                snap.forEach(c => {
+                    const m = c.val();
+                    const isSent = m.sender === currentUser.id;
+                    box.innerHTML += `<div class="message-wrapper ${isSent?'sent':'received'}"><div class="message-bubble ${isSent?'sent':'received'}">${m.text}</div></div>`;
+                });
+                box.scrollTop = box.scrollHeight;
+                toggleLoader(false);
+            });
+        }
+
+        window.sendMessage = async () => {
+            const input = document.getElementById('messageInput');
+            if(!input.value.trim()) return;
+            await push(ref(db, 'chats/'+currentChatId), { sender: currentUser.id, text: input.value, timestamp: Date.now() });
+            input.value = "";
+        }
+
+        // --- PHOTO & NAME ---
+        window.uploadPhoto = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            toggleLoader(true);
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const img = e.target.result;
+                await update(ref(db, 'users/' + currentUser.id), { profilePic: img });
+                currentUser.profilePic = img;
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                location.reload();
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.changeName = async () => {
+            const newName = prompt("Enter new name:", currentUser.username);
+            if (newName && newName.trim() !== "") {
+                toggleLoader(true);
+                await update(ref(db, 'users/' + currentUser.id), { username: newName.trim() });
+                currentUser.username = newName.trim();
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                location.reload();
             }
-        }
+        };
 
-        window.editComment = async (pid, cid, oldText) => {
-            const newText = prompt("Edit your comment:", oldText);
-            if(newText && newText.trim() !== "" && newText !== oldText) {
-                await update(ref(db, `posts/${pid}/comments/${cid}`), { text: newText.trim() });
-            }
-        }
-
-        window.deletePost = (pid) => {
-            if(confirm("Delete this post?")) remove(ref(db, 'posts/' + pid));
-        }
-
-        function loadPosts() {
+        // --- INIT ---
+        if(currentUser) {
+            toggleLoader(true);
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('app-interface').style.display = 'flex';
+            document.getElementById('myPic').src = currentUser.profilePic || defaultPic;
+            document.getElementById('postMyPic').src = currentUser.profilePic || defaultPic;
+            
+            // Feed
             onValue(ref(db, 'posts'), (snap) => {
                 const feed = document.getElementById('feed-container');
                 feed.innerHTML = "";
                 let posts = [];
                 snap.forEach(c => { posts.push({id: c.key, ...c.val()}); });
-                posts.reverse().forEach(p => {
-                    feed.innerHTML += generatePostHTML(p);
-                });
+                posts.reverse().forEach(p => { feed.innerHTML += generatePostHTML(p); });
+                toggleLoader(false);
             });
-        }
 
-        // --- PROFILE NAVIGATION ---
-        window.visitProfile = async (uid) => {
-            const snap = await get(ref(db, 'users/' + uid));
-            if(!snap.exists()) return;
-            const userData = snap.val();
-            pushState();
-            
-            document.getElementById('newsfeed-page').classList.add('hidden');
-            document.getElementById('profile-page').classList.remove('hidden');
-            
-            document.getElementById('profPic').src = userData.profilePic || defaultPic;
-            document.getElementById('profName').innerText = userData.username;
-            
-            const isMe = uid === currentUser.id;
-            document.getElementById('cam-label').style.display = isMe ? 'flex' : 'none';
-            document.getElementById('edit-name-icon').style.display = isMe ? 'block' : 'none';
-            document.getElementById('prof-tip').innerText = isMe ? "Tap camera to change photo" : "";
-
-            const msgBtn = document.getElementById('msg-btn-prof');
-            if(!isMe) {
-                msgBtn.style.display = 'block';
-                msgBtn.onclick = () => openInbox(userData);
-            } else {
-                msgBtn.style.display = 'none';
-            }
-
-            onValue(ref(db, 'posts'), (snap) => {
-                const userFeed = document.getElementById('user-posts-container');
-                userFeed.innerHTML = "";
-                let posts = [];
-                snap.forEach(c => { 
-                    const p = c.val();
-                    if(p.uid === uid) posts.push({id: c.key, ...p}); 
-                });
-                posts.reverse().forEach(p => {
-                    userFeed.innerHTML += generatePostHTML(p);
-                });
-            });
-        }
-
-        window.showMyProfile = () => visitProfile(currentUser.id);
-
-        window.showNewsfeed = () => {
-            document.getElementById('profile-page').classList.add('hidden');
-            document.getElementById('newsfeed-page').classList.remove('hidden');
-        }
-
-        // --- CHAT ---
-        window.openChatList = () => { pushState(); document.getElementById('users-page').classList.remove('hidden'); }
-        window.closeChatList = () => document.getElementById('users-page').classList.add('hidden');
-        window.closeInbox = () => document.getElementById('inbox-page').classList.add('hidden');
-
-        function loadUsers() {
+            // Users List
             onValue(ref(db, 'users'), (snap) => {
                 const list = document.getElementById('users-list');
                 list.innerHTML = "";
@@ -461,61 +489,6 @@
                 });
             });
         }
-
-        window.openInbox = (user) => {
-            pushState();
-            document.getElementById('users-page').classList.add('hidden');
-            document.getElementById('profile-page').classList.add('hidden');
-            document.getElementById('inbox-page').classList.remove('hidden');
-            document.getElementById('pName').innerText = user.username;
-            document.getElementById('pPic').src = user.profilePic || defaultPic;
-            const ids = [currentUser.id, user.id].sort();
-            currentChatId = ids[0] + '_' + ids[1];
-            onValue(ref(db, 'chats/'+currentChatId), (snap) => {
-                const box = document.getElementById('chat-box');
-                box.innerHTML = "";
-                snap.forEach(c => {
-                    const m = c.val();
-                    const isSent = m.sender === currentUser.id;
-                    box.innerHTML += `<div class="message-wrapper ${isSent?'sent':'received'}"><div class="message-bubble ${isSent?'sent':'received'}">${m.text}</div></div>`;
-                });
-                box.scrollTop = box.scrollHeight;
-            });
-        }
-
-        window.sendMessage = async () => {
-            const input = document.getElementById('messageInput');
-            if(!input.value.trim()) return;
-            await push(ref(db, 'chats/'+currentChatId), { sender: currentUser.id, text: input.value, timestamp: Date.now() });
-            input.value = "";
-        }
-
-        // --- INIT ---
-        if(currentUser) {
-            document.getElementById('auth-container').style.display = 'none';
-            document.getElementById('app-interface').style.display = 'flex';
-            document.getElementById('myPic').src = currentUser.profilePic || defaultPic;
-            document.getElementById('postMyPic').src = currentUser.profilePic || defaultPic;
-            loadPosts();
-            loadUsers();
-        }
-
-        // Global Bindings
-        window.visitProfile = visitProfile;
-        window.toggleLike = toggleLike;
-        window.showComments = showComments;
-        window.addComment = addComment;
-        window.deleteComment = deleteComment;
-        window.editComment = editComment;
-        window.showMyProfile = showMyProfile;
-        window.showNewsfeed = showNewsfeed;
-        window.createPost = createPost;
-        window.deletePost = deletePost;
-        window.openChatList = openChatList;
-        window.closeChatList = closeChatList;
-        window.openInbox = openInbox;
-        window.closeInbox = closeInbox;
-        window.sendMessage = sendMessage;
     </script>
 </body>
 </html>
