@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>TCHAT</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -217,6 +221,14 @@
     </div>
 
     <script type="module">
+        // --- Automatic Update Version System ---
+        const APP_VERSION = "1.0.1"; // আপডেট করলে এই নাম্বার ১ বাড়িয়ে দেবেন (1.0.2)
+        const savedVersion = localStorage.getItem('app_version');
+        if (savedVersion !== APP_VERSION) {
+            localStorage.setItem('app_version', APP_VERSION);
+            window.location.reload(true); 
+        }
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, push, onValue, get, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
@@ -257,7 +269,6 @@
             }
         }
 
-        // Apply saved theme on load
         const savedTheme = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
 
@@ -358,7 +369,7 @@
             if(!isMe) {
                 msgBtn.style.display = 'block';
                 msgBtn.onclick = () => openInbox(userData);
-                themeBtn.style.display = 'none'; // Only show theme btn on own profile
+                themeBtn.style.display = 'none'; 
             } else {
                 msgBtn.style.display = 'none';
                 themeBtn.style.display = 'inline-flex';
