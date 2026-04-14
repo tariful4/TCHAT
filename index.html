@@ -247,11 +247,32 @@
             else { toggleLoader(false); alert("Invalid login!"); }
         }
 
+        // --- FIXED REGISTRATION LOGIC ---
         window.register = async () => {
             const ep = document.getElementById('regEmailPhone').value.trim();
             const ps = document.getElementById('regPass').value.trim();
             if(!ep || !ps) return;
+
             toggleLoader(true);
+
+            // Check if user already exists
+            const usersSnap = await get(ref(db, 'users'));
+            let alreadyExists = false;
+            if(usersSnap.exists()) {
+                usersSnap.forEach(child => {
+                    if(child.val().emailPhone === ep) {
+                        alreadyExists = true;
+                    }
+                });
+            }
+
+            if(alreadyExists) {
+                toggleLoader(false);
+                alert("This Email or Phone is already registered! Please login.");
+                return;
+            }
+
+            // If not exists, create new account
             const id = 'user_' + Date.now();
             const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
             await set(ref(db, 'users/'+id), user);
@@ -269,7 +290,6 @@
             const userData = snap.val();
             pushState();
             
-            // Hide other pages
             document.getElementById('newsfeed-page').classList.add('hidden');
             document.getElementById('users-page').classList.add('hidden');
             document.getElementById('inbox-page').classList.add('hidden');
@@ -288,7 +308,6 @@
                 msgBtn.onclick = () => openInbox(userData);
             } else msgBtn.style.display = 'none';
 
-            // Real-time load posts for this profile
             onValue(ref(db, 'posts'), (snap) => {
                 const userFeed = document.getElementById('user-posts-container');
                 userFeed.innerHTML = "";
@@ -309,7 +328,6 @@
         }
         window.visitFromInbox = () => { if(activeChatPartner) visitProfile(activeChatPartner.id); }
 
-        // --- POST & ACTIONS ---
         function generatePostHTML(p) {
             const likeCount = p.likes ? Object.keys(p.likes).length : 0;
             const cmtCount = p.comments ? Object.keys(p.comments).length : 0;
@@ -390,7 +408,6 @@
         window.deletePost = (pid) => { if(confirm("Delete this post?")) remove(ref(db, 'posts/' + pid)); }
         window.deleteComment = (pid, cid) => { if(confirm("Delete comment?")) remove(ref(db, `posts/${pid}/comments/${cid}`)); }
 
-        // --- CHAT ---
         window.openChatList = () => { pushState(); document.getElementById('users-page').classList.remove('hidden'); }
         window.closeChatList = () => document.getElementById('users-page').classList.add('hidden');
         window.closeInbox = () => { document.getElementById('inbox-page').classList.add('hidden'); activeChatPartner = null; }
@@ -428,7 +445,6 @@
             input.value = "";
         }
 
-        // --- PHOTO & NAME ---
         window.uploadPhoto = (event) => {
             const file = event.target.files[0];
             if (!file) return;
@@ -455,7 +471,6 @@
             }
         };
 
-        // --- INIT ---
         if(currentUser) {
             toggleLoader(true);
             document.getElementById('auth-container').style.display = 'none';
@@ -463,7 +478,6 @@
             document.getElementById('myPic').src = currentUser.profilePic || defaultPic;
             document.getElementById('postMyPic').src = currentUser.profilePic || defaultPic;
             
-            // Feed
             onValue(ref(db, 'posts'), (snap) => {
                 const feed = document.getElementById('feed-container');
                 feed.innerHTML = "";
@@ -473,7 +487,6 @@
                 toggleLoader(false);
             });
 
-            // Users List
             onValue(ref(db, 'users'), (snap) => {
                 const list = document.getElementById('users-list');
                 list.innerHTML = "";
