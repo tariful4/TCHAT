@@ -217,14 +217,23 @@
             else loader.classList.add('hidden');
         }
 
-        // --- Back Button Logic ---
+        // --- FIXED Back Button Logic ---
         window.addEventListener('popstate', () => {
             const inbox = document.getElementById('inbox-page');
             const users = document.getElementById('users-page');
             const profile = document.getElementById('profile-page');
-            if (!inbox.classList.contains('hidden')) closeInbox();
-            else if (!users.classList.contains('hidden')) closeChatList();
-            else if (!profile.classList.contains('hidden')) showNewsfeed();
+            
+            if (!inbox.classList.contains('hidden')) {
+                // If in inbox, just hide inbox and keep users list visible
+                inbox.classList.add('hidden');
+                activeChatPartner = null;
+            } 
+            else if (!users.classList.contains('hidden')) {
+                users.classList.add('hidden');
+            }
+            else if (!profile.classList.contains('hidden')) {
+                showNewsfeed();
+            }
         });
 
         function pushState() { if (window.history.state !== "app") history.pushState("app", ""); }
@@ -247,22 +256,17 @@
             else { toggleLoader(false); alert("Invalid login!"); }
         }
 
-        // --- FIXED REGISTRATION LOGIC ---
         window.register = async () => {
             const ep = document.getElementById('regEmailPhone').value.trim();
             const ps = document.getElementById('regPass').value.trim();
             if(!ep || !ps) return;
 
             toggleLoader(true);
-
-            // Check if user already exists
             const usersSnap = await get(ref(db, 'users'));
             let alreadyExists = false;
             if(usersSnap.exists()) {
                 usersSnap.forEach(child => {
-                    if(child.val().emailPhone === ep) {
-                        alreadyExists = true;
-                    }
+                    if(child.val().emailPhone === ep) alreadyExists = true;
                 });
             }
 
@@ -272,7 +276,6 @@
                 return;
             }
 
-            // If not exists, create new account
             const id = 'user_' + Date.now();
             const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
             await set(ref(db, 'users/'+id), user);
@@ -408,15 +411,22 @@
         window.deletePost = (pid) => { if(confirm("Delete this post?")) remove(ref(db, 'posts/' + pid)); }
         window.deleteComment = (pid, cid) => { if(confirm("Delete comment?")) remove(ref(db, `posts/${pid}/comments/${cid}`)); }
 
+        // --- CHAT LOGIC UPDATED ---
         window.openChatList = () => { pushState(); document.getElementById('users-page').classList.remove('hidden'); }
-        window.closeChatList = () => document.getElementById('users-page').classList.add('hidden');
-        window.closeInbox = () => { document.getElementById('inbox-page').classList.add('hidden'); activeChatPartner = null; }
+        window.closeChatList = () => {
+            document.getElementById('users-page').classList.add('hidden');
+        }
+        window.closeInbox = () => { 
+            // Manual close button should just hide inbox, users page remains visible
+            document.getElementById('inbox-page').classList.add('hidden'); 
+            activeChatPartner = null; 
+        }
 
         window.openInbox = (user) => {
             toggleLoader(true);
             activeChatPartner = user;
-            pushState();
-            document.getElementById('users-page').classList.add('hidden');
+            pushState(); // New state for inbox
+            document.getElementById('users-page').classList.remove('hidden'); // Ensure users page is still "there"
             document.getElementById('profile-page').classList.add('hidden');
             document.getElementById('inbox-page').classList.remove('hidden');
             document.getElementById('pName').innerText = user.username;
