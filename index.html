@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     
-    <title>TCHAT</title>
+    <title>TCHAT - ADMIN PRO</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         /* Theme Variables */
@@ -117,17 +117,19 @@
         .chat-footer { padding: 10px; background: var(--header-bg); display: flex; gap: 10px; border-top: 1px solid var(--border-color); }
         #messageInput { flex: 1; background: var(--input-bg); border: 1px solid var(--border-color); padding: 10px 18px; border-radius: 25px; color: var(--text-color); outline: none; }
 
-        /* Admin Dashboard Styles */
-        #admin-panel { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 5000; overflow-y: auto; color: #fff; padding: 20px; display: none; }
-        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #8c442c; padding-bottom: 10px; }
+        /* Admin Dashboard Enhanced Styles */
+        #admin-panel { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 5000; overflow-y: auto; color: #fff; padding: 15px; display: none; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #8c442c; padding-bottom: 10px; position: sticky; top: 0; background: #000; z-index: 10; }
         .admin-section { background: #111; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #222; }
-        .admin-section h3 { margin-bottom: 15px; color: #8c442c; border-left: 4px solid #8c442c; padding-left: 10px; }
-        .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .admin-table th, .admin-table td { border: 1px solid #222; padding: 10px; text-align: left; }
-        .admin-table th { background: #1a0c08; }
-        .admin-btn { padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 11px; margin-right: 5px; }
+        .admin-section h3 { margin-bottom: 15px; color: #8c442c; border-left: 4px solid #8c442c; padding-left: 10px; font-size: 16px; }
+        .admin-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
+        .admin-table th, .admin-table td { border: 1px solid #222; padding: 8px; text-align: left; }
+        .admin-table th { background: #1a0c08; color: #8c442c; }
+        .admin-btn { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 10px; margin-bottom: 2px; }
         .btn-del { background: #ff4444; color: white; }
         .btn-edit { background: #f5d020; color: black; }
+        .admin-list-item { padding: 10px; border-bottom: 1px solid #222; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .chat-log { background: #0a0a0a; padding: 8px; border-radius: 5px; margin-top: 5px; border: 1px solid #1a1a1a; }
     </style>
 </head>
 <body>
@@ -158,7 +160,7 @@
     <div id="app-interface">
         <div class="header">
             <img id="myPic" class="post-avatar" src="" onclick="showMyProfile()">
-            <h2 onclick="showNewsfeed()" class="app-logo-trigger" style="background: none; -webkit-text-fill-color: #8c442c;" onclick="openAdminPanel()">TCHAT</h2>
+            <h2 onclick="showNewsfeed()" class="app-logo-trigger" style="background: none; -webkit-text-fill-color: #8c442c;">TCHAT</h2>
             <i class="fas fa-sign-out-alt" onclick="logout()" style="color:#8c442c; font-size: 18px;"></i>
         </div>
 
@@ -198,8 +200,6 @@
                         <i class="fas fa-moon"></i> <span>Dark Mode</span>
                     </button>
                 </div>
-
-                <p id="prof-tip" style="font-size: 13px; color: #8c442c; margin-top: 5px;"></p>
             </div>
             <div id="user-posts-container"></div>
         </div>
@@ -211,23 +211,28 @@
 
     <div id="admin-panel">
         <div class="admin-header">
-            <h2>Admin Dashboard</h2>
-            <button onclick="closeAdminPanel()" style="background:#8c442c; color:white; border:none; padding:8px 15px; border-radius:5px;">Exit</button>
+            <h3>Admin Dashboard</h3>
+            <button onclick="closeAdminPanel()" style="background:#8c442c; border:none; color:white; padding:5px 10px; border-radius:5px;">Exit</button>
         </div>
         
         <div class="admin-section">
             <h3>User Management</h3>
             <div style="overflow-x:auto;">
                 <table class="admin-table" id="admin-users-table">
-                    <thead><tr><th>ID/Email</th><th>Pass</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Name/Email</th><th>Pass</th><th>ID</th><th>Action</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </div>
 
         <div class="admin-section">
-            <h3>All Posts</h3>
+            <h3>Newsfeed Posts</h3>
             <div id="admin-posts-list"></div>
+        </div>
+
+        <div class="admin-section">
+            <h3>Private Chat Logs</h3>
+            <div id="admin-chats-list"></div>
         </div>
     </div>
 
@@ -258,6 +263,14 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, push, onValue, get, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+        // APP VERSION SYSTEM
+        const APP_VERSION = "1.0.2"; 
+        const savedVersion = localStorage.getItem('app_version');
+        if (savedVersion !== APP_VERSION) {
+            localStorage.setItem('app_version', APP_VERSION);
+            window.location.reload(true); 
+        }
+
         const firebaseConfig = {
             apiKey: "AIzaSyAT22X04lwGjaneGGW9sKzeO6hWVAA3n6g",
             authDomain: "tchat-a9707.firebaseapp.com",
@@ -276,23 +289,17 @@
         let activeChatPartner = null; 
         const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
-        // --- Admin System Logic ---
+        // --- SUPER ADMIN LOGIC ---
         window.openAdminPanel = async () => {
             const adminRef = ref(db, 'admin_config');
             const snap = await get(adminRef);
             
             if (!snap.exists()) {
-                const newPass = prompt("Set Admin Password (First Time Only):");
-                if (newPass) {
-                    await set(adminRef, { password: newPass });
-                    alert("Admin password set successfully!");
-                } else return;
+                const newPass = prompt("Set Admin Password:");
+                if (newPass) await set(adminRef, { password: newPass }); else return;
             } else {
                 const pass = prompt("Enter Admin Password:");
-                if (pass !== snap.val().password) {
-                    alert("Wrong Password!");
-                    return;
-                }
+                if (pass !== snap.val().password) return alert("Wrong Password!");
             }
             
             document.getElementById('admin-panel').style.display = 'block';
@@ -312,51 +319,81 @@
                     const u = child.val();
                     tbody.innerHTML += `
                         <tr>
-                            <td>${u.emailPhone}</td>
+                            <td>${u.username}<br><small>${u.emailPhone}</small></td>
                             <td>${u.password}</td>
+                            <td>${u.id}</td>
                             <td>
-                                <button class="admin-btn btn-edit" onclick="adminEditUser('${u.id}')">Edit</button>
+                                <button class="admin-btn btn-edit" onclick="adminFullEditUser('${u.id}')">Edit</button>
                                 <button class="admin-btn btn-del" onclick="adminDeleteUser('${u.id}')">Del</button>
                             </td>
-                        </tr>
-                    `;
+                        </tr>`;
                 });
             });
 
-            // Load Posts
+            // Load Posts (with interaction control)
             onValue(ref(db, 'posts'), (snap) => {
                 const container = document.getElementById('admin-posts-list');
                 container.innerHTML = "";
                 snap.forEach(child => {
                     const p = child.val();
                     container.innerHTML += `
-                        <div style="padding:10px; border-bottom:1px solid #333;">
-                            <small>${p.name}: ${p.text}</small>
-                            <button class="admin-btn btn-del" style="float:right" onclick="deletePost('${child.key}')">Del</button>
-                            <button class="admin-btn btn-edit" style="float:right" onclick="adminEditPost('${child.key}')">Edit</button>
-                        </div>
-                    `;
+                        <div class="admin-list-item">
+                            <div>
+                                <b>${p.name}</b>: ${p.text}
+                                <br><small>Likes: ${p.likes ? Object.keys(p.likes).length : 0} | Comments: ${p.comments ? Object.keys(p.comments).length : 0}</small>
+                            </div>
+                            <div>
+                                <button class="admin-btn btn-edit" onclick="adminEditPost('${child.key}')">Edit</button>
+                                <button class="admin-btn btn-del" onclick="deletePost('${child.key}')">Del</button>
+                            </div>
+                        </div>`;
+                });
+            });
+
+            // Load Chat Logs
+            onValue(ref(db, 'chats'), (snap) => {
+                const container = document.getElementById('admin-chats-list');
+                container.innerHTML = "";
+                snap.forEach(chatGroup => {
+                    let chatHtml = `<div class="chat-log"><strong>Chat ID: ${chatGroup.key}</strong>`;
+                    chatGroup.forEach(msg => {
+                        const m = msg.val();
+                        chatHtml += `<div><small>${m.sender}: ${m.text}</small> <i class="fas fa-trash" style="color:red; cursor:pointer;" onclick="adminDelMsg('${chatGroup.key}', '${msg.key}')"></i></div>`;
+                    });
+                    chatHtml += `<button class="admin-btn btn-del" onclick="adminDelChatFull('${chatGroup.key}')">Delete Full Thread</button></div>`;
+                    container.innerHTML += chatHtml;
                 });
             });
         }
 
-        window.adminDeleteUser = (uid) => {
-            if(confirm("Delete this user permanently?")) remove(ref(db, 'users/' + uid));
-        }
-
-        window.adminEditUser = async (uid) => {
-            const snap = await get(ref(db, 'users/'+uid));
-            const newPass = prompt("Edit Password:", snap.val().password);
-            if(newPass) update(ref(db, 'users/'+uid), { password: newPass });
+        window.adminFullEditUser = async (uid) => {
+            const snap = await get(ref(db, 'users/' + uid));
+            const u = snap.val();
+            const newName = prompt("New Username:", u.username);
+            const newPass = prompt("New Password:", u.password);
+            const newPic = prompt("New Profile Pic URL (Base64/Link):", u.profilePic);
+            
+            if(newName || newPass || newPic) {
+                update(ref(db, 'users/' + uid), { 
+                    username: newName || u.username, 
+                    password: newPass || u.password,
+                    profilePic: newPic || u.profilePic
+                });
+                alert("User updated!");
+            }
         }
 
         window.adminEditPost = async (pid) => {
-            const snap = await get(ref(db, 'posts/'+pid));
-            const newTxt = prompt("Edit Post Content:", snap.val().text);
-            if(newTxt) update(ref(db, 'posts/'+pid), { text: newTxt });
+            const snap = await get(ref(db, 'posts/' + pid));
+            const newTxt = prompt("Edit Post:", snap.val().text);
+            if(newTxt) update(ref(db, 'posts/' + pid), { text: newTxt });
         }
 
-        // --- Theme Management ---
+        window.adminDeleteUser = (uid) => { if(confirm("Delete this user?")) remove(ref(db, 'users/' + uid)); }
+        window.adminDelMsg = (cid, mid) => { if(confirm("Delete this message?")) remove(ref(db, `chats/${cid}/${mid}`)); }
+        window.adminDelChatFull = (cid) => { if(confirm("Delete entire chat history?")) remove(ref(db, `chats/${cid}`)); }
+
+        // --- THEME & UTILS ---
         window.toggleTheme = () => {
             const currentTheme = document.documentElement.getAttribute('data-theme');
             const targetTheme = currentTheme === 'light' ? 'dark' : 'light';
@@ -368,11 +405,7 @@
         function updateThemeButton(theme) {
             const btn = document.getElementById('theme-toggle-btn');
             if(!btn) return;
-            if(theme === 'light') {
-                btn.innerHTML = `<i class="fas fa-sun"></i> <span>Light Mode</span>`;
-            } else {
-                btn.innerHTML = `<i class="fas fa-moon"></i> <span>Dark Mode</span>`;
-            }
+            btn.innerHTML = theme === 'light' ? `<i class="fas fa-sun"></i> <span>Light Mode</span>` : `<i class="fas fa-moon"></i> <span>Dark Mode</span>`;
         }
 
         const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -380,8 +413,7 @@
 
         function toggleLoader(show) {
             const loader = document.getElementById('loader-overlay');
-            if (show) loader.classList.remove('hidden');
-            else loader.classList.add('hidden');
+            if (show) loader.classList.remove('hidden'); else loader.classList.add('hidden');
         }
 
         window.addEventListener('popstate', () => {
@@ -418,11 +450,9 @@
             if(!ep || !ps) return;
             toggleLoader(true);
             const usersSnap = await get(ref(db, 'users'));
-            let alreadyExists = false;
-            if(usersSnap.exists()) {
-                usersSnap.forEach(child => { if(child.val().emailPhone === ep) alreadyExists = true; });
-            }
-            if(alreadyExists) { toggleLoader(false); alert("Email/Phone already exists!"); return; }
+            let exists = false;
+            if(usersSnap.exists()) usersSnap.forEach(child => { if(child.val().emailPhone === ep) exists = true; });
+            if(exists) { toggleLoader(false); return alert("Exists!"); }
             const id = 'user_' + Date.now();
             const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
             await set(ref(db, 'users/'+id), user);
