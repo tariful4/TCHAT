@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     
-    <title>TCHAT - ADMIN PRO</title>
+    <title>TCHAT</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         /* Theme Variables */
@@ -274,7 +274,6 @@
         window.closeAdminPanel = () => document.getElementById('admin-panel').style.display = 'none';
 
         function loadAdminDashboard() {
-            // Monitor Users
             onValue(ref(db, 'users'), (snap) => {
                 const tbody = document.querySelector('#admin-users-table tbody');
                 tbody.innerHTML = "";
@@ -285,13 +284,12 @@
                         <td>${u.password}</td>
                         <td>
                             <button class="admin-btn btn-edit" onclick="adminEditUser('${u.id}')">Full Edit</button>
-                            <button class="admin-btn btn-del" onclick="adminDeleteUser('${u.id}')">Ban</button>
+                            <button class="admin-btn btn-del" onclick="adminDeleteUser('${u.id}')">Delete All Data</button>
                         </td>
                     </tr>`;
                 });
             });
 
-            // Monitor Posts
             onValue(ref(db, 'posts'), (snap) => {
                 const container = document.getElementById('admin-posts-list');
                 container.innerHTML = "";
@@ -305,7 +303,6 @@
                 });
             });
 
-            // Monitor All Private Chats
             onValue(ref(db, 'chats'), (snap) => {
                 const container = document.getElementById('admin-chats-list');
                 container.innerHTML = "";
@@ -318,6 +315,48 @@
                     container.innerHTML += html;
                 });
             });
+        }
+
+        // --- ENHANCED DELETE USER (Profile + Post + Like + Chat) ---
+        window.adminDeleteUser = async (uid) => {
+            if (confirm("Are you sure? This will delete Profile, Posts, Likes, and all Private Chats!")) {
+                toggleLoader(true);
+                try {
+                    // 1. Delete user's posts & remove their likes from others' posts
+                    const postsSnap = await get(ref(db, 'posts'));
+                    if (postsSnap.exists()) {
+                        postsSnap.forEach((child) => {
+                            const postData = child.val();
+                            if (postData.uid === uid) {
+                                remove(ref(db, 'posts/' + child.key));
+                            } else {
+                                if (postData.likes && postData.likes[uid]) {
+                                    remove(ref(db, `posts/${child.key}/likes/${uid}`));
+                                }
+                            }
+                        });
+                    }
+
+                    // 2. Delete all private chat threads related to this user
+                    const chatsSnap = await get(ref(db, 'chats'));
+                    if (chatsSnap.exists()) {
+                        chatsSnap.forEach((group) => {
+                            if (group.key.includes(uid)) {
+                                remove(ref(db, 'chats/' + group.key));
+                            }
+                        });
+                    }
+
+                    // 3. Delete user profile
+                    await remove(ref(db, 'users/' + uid));
+                    
+                    alert("User and all data wiped successfully!");
+                } catch (error) {
+                    console.error(error);
+                    alert("Something went wrong!");
+                }
+                toggleLoader(false);
+            }
         }
 
         window.adminEditUser = async (uid) => {
@@ -341,11 +380,10 @@
             if(txt) update(ref(db, 'posts/'+pid), { text: txt });
         }
 
-        window.adminDeleteUser = (uid) => { if(confirm("Ban User?")) remove(ref(db, 'users/'+uid)); }
         window.adminDelMsg = (cid, mid) => { if(confirm("Delete message?")) remove(ref(db, `chats/${cid}/${mid}`)); }
         window.adminClearChat = (cid) => { if(confirm("Clear Full Thread?")) remove(ref(db, `chats/${cid}`)); }
 
-        // --- APP FUNCTIONALITY (No Changes to Existing Flow) ---
+        // --- APP FUNCTIONALITY (Standard) ---
         function toggleLoader(show) { document.getElementById('loader-overlay').classList[show?'remove':'add']('hidden'); }
         window.toggleAuth = (reg) => {
             document.getElementById('login-form').style.display = reg ? 'none' : 'block';
@@ -422,6 +460,7 @@
         window.visitProfile = async (uid) => {
             toggleLoader(true);
             const snap = await get(ref(db, 'users/'+uid));
+            if(!snap.exists()) { alert("User not found!"); toggleLoader(false); return; }
             const u = snap.val();
             document.getElementById('newsfeed-page').classList.add('hidden');
             document.getElementById('profile-page').classList.remove('hidden');
