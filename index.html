@@ -266,6 +266,38 @@
         let activeChatPartner = null; 
         const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
+        // --- Push Notification Permission Setup ---
+        function requestNotificationPermission() {
+            if ("Notification" in window) {
+                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                    Notification.requestPermission();
+                }
+            }
+        }
+
+        function triggerPushNotification(title, body, iconUrl, clickCallback) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                const options = {
+                    body: body,
+                    icon: iconUrl || defaultPic,
+                    vibrate: [200, 100, 200]
+                };
+                const notification = new Notification(title, options);
+                if (clickCallback) {
+                    notification.onclick = function(e) {
+                        e.preventDefault();
+                        window.focus();
+                        clickCallback();
+                        notification.close();
+                    };
+                }
+            }
+        }
+
+        // --- Track Last Timestamps to Prevent Old Data Notifications ---
+        let lastPostTimestamp = Date.now();
+        let globalChatListeners = {};
+
         // --- Theme Management ---
         window.toggleTheme = () => {
             const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -423,7 +455,7 @@
                     cmtHtml += `<div class="comment-item"><span class="comment-user" onclick="visitProfile('${c.uid}')">${c.name}:</span> ${c.text}${c.uid === currentUser.id ? `<div class="cmt-actions"><i class="fas fa-trash" onclick="deleteComment('${p.id}', '${cid}')"></i></div>` : ''}</div>`;
                 });
             }
-            return `<div class="post-card"><div class="post-header"><img src="${p.pic || defaultPic}" class="post-avatar" onclick="visitProfile('${p.uid}')"><div><div class="post-user" onclick="visitProfile('${p.uid}')">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}</div><div class="post-content">${p.text}</div><div class="post-stats"><span><i class="fas fa-thumbs-up"></i> ${likeCount}</span><span>${cmtCount} Comments</span></div><div class="post-actions"><span class="${isLiked?'liked':''}" onclick="toggleLike('${p.id}')"><i class="fas fa-thumbs-up"></i> Like</span><span onclick="showComments('${p.id}')"><i class="fas fa-comment"></i> Comment</span></div><div class="comment-section" id="comments-${p.id}"><div id="comment-list-${p.id}">${cmtHtml}</div><div class="comment-input-row"><input type="text" id="cmt-inp-${p.id}" placeholder="Write a comment..."><i class="fas fa-paper-plane" onclick="addComment('${p.id}')" style="color:#8c442c; margin-top:5px; cursor:pointer;"></i></div></div></div>`;
+            return `<div class="post-card"><div class="post-header"><img src="${p.pic || defaultPic}" class="post-avatar" onclick="visitProfile('${p.uid}')"><div><div class="post-user" onclick="visitProfile('${p.uid}')">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}</div><div class="post-content">${p.text}</div><div class="post-stats"><span><i class="fas fa-thumbs-up"></i> ${likeCount}</span><span>${cmtCount} Comments</span></div><div class="post-actions"><span class="${isLiked?'liked':''}" onclick="toggleLike('${p.id}')"><i class="fas fa-thumbs-up"></i> Like</span><span onclick="showComments('${p.id}')"><i class="fas fa-comment"></i> Comment</span></div><div class="comment-section" id="comments-${p.id}"><div id="comment-list-${p.id}">${cmtHtml}</div><div class="comment-input-row"><input type="text" id="cmt-inp-${pid}" placeholder="Write a comment..."><i class="fas fa-paper-plane" onclick="addComment('${p.id}')" style="color:#8c442c; margin-top:5px; cursor:pointer;"></i></div></div></div>`;
         }
 
         window.createPost = async () => {
@@ -516,19 +548,40 @@
 
         if(currentUser) {
             toggleLoader(true);
+            requestNotificationPermission(); // Request permission when logged in
             document.getElementById('auth-container').style.display = 'none';
             document.getElementById('app-interface').style.display = 'flex';
             document.getElementById('myPic').src = currentUser.profilePic || defaultPic;
             document.getElementById('postMyPic').src = currentUser.profilePic || defaultPic;
             
+            // Newsfeed listener with push notification injection
             onValue(ref(db, 'posts'), (snap) => {
                 const feed = document.getElementById('feed-container');
                 feed.innerHTML = ""; let posts = [];
-                snap.forEach(c => { posts.push({id: c.key, ...c.val()}); });
+                snap.forEach(c => { 
+                    const p = c.val();
+                    posts.push({id: c.key, ...p}); 
+                    
+                    // Trigger notification for new post by other users
+                    if (p.uid !== currentUser.id && p.timestamp > lastPostTimestamp) {
+                        triggerPushNotification(
+                            `New Post from ${p.name}`, 
+                            p.text.length > 60 ? p.text.substring(0, 60) + "..." : p.text, 
+                            p.pic,
+                            () => { window.showNewsfeed(); }
+                        );
+                    }
+                });
+                
+                if(posts.length > 0) {
+                    lastPostTimestamp = Math.max(...posts.map(o => o.timestamp || 0));
+                }
+                
                 posts.reverse().forEach(p => { feed.innerHTML += generatePostHTML(p); });
                 toggleLoader(false);
             });
 
+            // Users list listener + background messaging listener for all active connections
             onValue(ref(db, 'users'), (snap) => {
                 const list = document.getElementById('users-list');
                 list.innerHTML = "";
@@ -540,6 +593,31 @@
                         div.innerHTML = `<img src="${u.profilePic || defaultPic}"><div><h4>${u.username}</h4><small>Tap to chat</small></div>`;
                         div.onclick = () => openInbox(u);
                         list.appendChild(div);
+
+                        // Attach real-time notification listeners for messages from this user
+                        const ids = [currentUser.id, u.id].sort();
+                        const chatRoomId = ids[0] + '_' + ids[1];
+                        
+                        if (!globalChatListeners[chatRoomId]) {
+                            let lastMsgTime = Date.now();
+                            globalChatListeners[chatRoomId] = onValue(ref(db, 'chats/' + chatRoomId), (chatSnap) => {
+                                chatSnap.forEach(msgNode => {
+                                    const m = msgNode.val();
+                                    if (m.sender === u.id && m.timestamp > lastMsgTime) {
+                                        // Trigger notification if not currently active in this exact chat
+                                        if (activeChatPartner === null || activeChatPartner.id !== u.id) {
+                                            triggerPushNotification(
+                                                `New Message from ${u.username}`,
+                                                m.text.length > 50 ? m.text.substring(0, 50) + "..." : m.text,
+                                                u.profilePic,
+                                                () => { openInbox(u); }
+                                            );
+                                        }
+                                    }
+                                    if(m.timestamp > lastMsgTime) { lastMsgTime = m.timestamp; }
+                                });
+                            });
+                        }
                     }
                 });
             });
