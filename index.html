@@ -193,7 +193,6 @@
                 
                 <div id="mediaPreviewContainer" class="media-preview-area">
                     <button class="cancel-media-btn" onclick="clearSelectedMedia()"><i class="fas fa-times"></i></button>
-                    <!-- Element dynamically injected by JS -->
                 </div>
 
                 <div class="post-options-row">
@@ -234,12 +233,9 @@
                 <p id="prof-tip" style="font-size: 13px; color: #8c442c; margin-top: 5px;"></p>
             </div>
 
-            <!-- Profile Visitors Element Dashboard Container -->
             <div id="profile-visitors-dashboard" class="visitors-section hidden">
                 <h4><i class="fas fa-eye"></i> Profile Visitors</h4>
-                <div id="visitors-list-container" class="visitors-list">
-                     <!-- Dynamic visitor rows inject here -->
-                </div>
+                <div id="visitors-list-container" class="visitors-list"></div>
             </div>
 
             <div id="user-posts-container"></div>
@@ -274,29 +270,33 @@
     </div>
 
     <script type="module">
-        // --- Automatic Update Version System ---
-        const APP_VERSION = "1.0.4"; // Bumping version for new schema updates
+        const APP_VERSION = "1.0.5"; 
         const savedVersion = localStorage.getItem('app_version');
         if (savedVersion !== APP_VERSION) {
             localStorage.setItem('app_version', APP_VERSION);
             window.location.reload(true); 
         }
 
+        // Import updated Firebase JS SDK v10.7.1
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, push, onValue, get, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, push, onValue, get, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getFirestore, doc, setDoc, addDoc, collection, onSnapshot, getDoc, deleteDoc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+        // Your Web App's Firebase Configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyAT22X04lwGjaneGGW9sKzeO6hWVAA3n6g",
-            authDomain: "tchat-a9707.firebaseapp.com",
-            databaseURL: "https://tchat-a9707-default-rtdb.firebaseio.com",
-            projectId: "tchat-a9707",
-            storageBucket: "tchat-a9707.firebasestorage.app",
-            messagingSenderId: "324756549796",
-            appId: "1:324756549796:web:f557ebab16be9e5545f631"
+            apiKey: "AIzaSyCd8I9wgA6wRiLIK811anaHbGjm9SQVHro",
+            authDomain: "tchat-ebe69.firebaseapp.com",
+            projectId: "tchat-ebe69",
+            storageBucket: "tchat-ebe69.firebasestorage.app",
+            messagingSenderId: "311814351008",
+            appId: "1:311814351008:web:4293c759ac3f0f24a5c1c5",
+            measurementId: "G-7C6R615ELS",
+            databaseURL: "https://tchat-a9707-default-rtdb.firebaseio.com" // Chatting RTDB remains unchanged
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        const db = getDatabase(app);     // Old Realtime Database for chat
+        const fs = getFirestore(app);    // New Firestore for Posts, Profile & Visitors
 
         let currentUser = JSON.parse(localStorage.getItem('user')) || null;
         let currentChatId = null;
@@ -308,7 +308,6 @@
 
         const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
-        // --- Safe Notification Handlers ---
         function requestNotificationPermission() {
             try {
                 if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
@@ -334,7 +333,6 @@
         let lastPostTimestamp = Date.now();
         let globalChatListeners = {};
 
-        // --- Theme Management ---
         window.toggleTheme = () => {
             const currentTheme = document.documentElement.getAttribute('data-theme');
             const targetTheme = currentTheme === 'light' ? 'dark' : 'light';
@@ -346,24 +344,18 @@
         function updateThemeButton(theme) {
             const btn = document.getElementById('theme-toggle-btn');
             if(!btn) return;
-            if(theme === 'light') {
-                btn.innerHTML = `<i class="fas fa-sun"></i> <span>Light Mode</span>`;
-            } else {
-                btn.innerHTML = `<i class="fas fa-moon"></i> <span>Dark Mode</span>`;
-            }
+            btn.innerHTML = theme === 'light' ? `<i class="fas fa-sun"></i> <span>Light Mode</span>` : `<i class="fas fa-moon"></i> <span>Dark Mode</span>`;
         }
 
         const savedTheme = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
 
-        // --- Loader Logic ---
         function toggleLoader(show) {
             const loader = document.getElementById('loader-overlay');
             if (show) loader.classList.remove('hidden');
             else loader.classList.add('hidden');
         }
 
-        // --- Back Button Logic ---
         window.addEventListener('popstate', () => {
             const inbox = document.getElementById('inbox-page');
             const users = document.getElementById('users-page');
@@ -383,7 +375,6 @@
 
         function pushState() { if (window.history.state !== "app") history.pushState("app", ""); }
 
-        // --- AUTH ---
         window.toggleAuth = (reg) => {
             document.getElementById('login-form').style.display = reg ? 'none' : 'block';
             document.getElementById('reg-form').style.display = reg ? 'block' : 'none';
@@ -394,11 +385,15 @@
             const ps = document.getElementById('loginPass').value.trim();
             if(!ep || !ps) return;
             toggleLoader(true);
-            const snap = await get(ref(db, 'users'));
-            let found = null;
-            snap.forEach(c => { if(c.val().emailPhone === ep && c.val().password === ps) found = c.val(); });
-            if(found) { localStorage.setItem('user', JSON.stringify(found)); location.reload(); }
-            else { toggleLoader(false); alert("Invalid login!"); }
+            
+            const userDoc = await getDoc(doc(fs, 'users', ep));
+            if(userDoc.exists() && userDoc.data().password === ps) {
+                localStorage.setItem('user', JSON.stringify(userDoc.data()));
+                location.reload();
+            } else {
+                toggleLoader(false);
+                alert("Invalid login!");
+            }
         }
 
         window.register = async () => {
@@ -406,33 +401,27 @@
             const ps = document.getElementById('regPass').value.trim();
             if(!ep || !ps) return;
             toggleLoader(true);
-            const usersSnap = await get(ref(db, 'users'));
-            let alreadyExists = false;
-            if(usersSnap.exists()) {
-                usersSnap.forEach(child => {
-                    if(child.val().emailPhone === ep) alreadyExists = true;
-                });
-            }
-            if(alreadyExists) {
+            
+            const userDoc = await getDoc(doc(fs, 'users', ep));
+            if(userDoc.exists()) {
                 toggleLoader(false);
                 alert("This Email or Phone is already registered! Please login.");
                 return;
             }
             const id = 'user_' + Date.now();
             const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
-            await set(ref(db, 'users/'+id), user);
+            await setDoc(doc(fs, 'users', ep), user);
+            await setDoc(doc(fs, 'users_lookup', id), user); // Quick access by id
             localStorage.setItem('user', JSON.stringify(user));
             location.reload();
         }
 
         window.logout = () => { localStorage.clear(); location.reload(); }
 
-        // --- MEDIA HANDLING LOGIC FOR RICH POSTS ---
         window.handlePostMediaSelect = (event) => {
             const file = event.target.files[0];
             if (!file) return;
             
-            // File Size Warning for Realtime Database (Keeps data packet size secure)
             if (file.size > 2 * 1024 * 1024) { 
                 alert("File size too large! Please choose a file under 2MB.");
                 event.target.value = "";
@@ -440,13 +429,10 @@
             }
 
             selectedPostMediaType = file.type.startsWith('video/') ? 'video' : 'image';
-            
             const reader = new FileReader();
             reader.onload = (e) => {
                 selectedPostMediaRaw = e.target.result;
                 const container = document.getElementById('mediaPreviewContainer');
-                
-                // Dynamic clean slate inside container
                 const oldMedia = container.querySelector('img, video');
                 if (oldMedia) oldMedia.remove();
 
@@ -475,15 +461,14 @@
             if (oldMedia) oldMedia.remove();
         };
 
-        // --- PROFILE VISIT SYSTEM & VISITORS LOGIC ---
         window.visitProfile = async (uid) => {
             toggleLoader(true);
             if(currentProfileListener) { currentProfileListener(); currentProfileListener = null; } 
             if(currentVisitorsListener) { currentVisitorsListener(); currentVisitorsListener = null; }
 
-            const snap = await get(ref(db, 'users/' + uid));
+            const snap = await getDoc(doc(fs, 'users_lookup', uid));
             if(!snap.exists()) { toggleLoader(false); return; }
-            const userData = snap.val();
+            const userData = snap.val ? snap.val() : snap.data();
             pushState();
             
             document.getElementById('newsfeed-page').classList.add('hidden');
@@ -508,8 +493,7 @@
                 themeBtn.style.display = 'none'; 
                 visitorsDashboard.classList.add('hidden');
                 
-                // Track Profile Visit Event silently in DB
-                await set(ref(db, `profile_visitors/${uid}/${currentUser.id}`), {
+                await setDoc(doc(fs, `profile_visitors/${uid}/visitors`, currentUser.id), {
                     uid: currentUser.id,
                     name: currentUser.username,
                     pic: currentUser.profilePic || defaultPic,
@@ -521,18 +505,16 @@
                 updateThemeButton(localStorage.getItem('theme') || 'dark');
                 visitorsDashboard.classList.remove('hidden');
                 
-                // Live Stream profile visitors exclusively onto your own profile
-                currentVisitorsListener = onValue(ref(db, `profile_visitors/${currentUser.id}`), (vSnap) => {
+                currentVisitorsListener = onSnapshot(query(collection(fs, `profile_visitors/${currentUser.id}/visitors`), orderBy('timestamp', 'desc')), (vSnap) => {
                     const listContainer = document.getElementById('visitors-list-container');
                     listContainer.innerHTML = "";
                     let visitors = [];
-                    vSnap.forEach(child => { visitors.push(child.val()); });
+                    vSnap.forEach(child => { visitors.push(child.data()); });
                     
                     if (visitors.length === 0) {
                         listContainer.innerHTML = `<p style="font-size:12px; opacity:0.5; padding:10px;">No recent visitors yet.</p>`;
                     } else {
-                        // Display fresh visitors on top chronologically
-                        visitors.sort((a,b) => b.timestamp - a.timestamp).forEach(v => {
+                        visitors.forEach(v => {
                             listContainer.innerHTML += `
                                 <div class="visitor-item">
                                     <img src="${v.pic || defaultPic}" class="visitor-img">
@@ -546,15 +528,13 @@
                 });
             }
 
-            currentProfileListener = onValue(ref(db, 'posts'), (snap) => {
+            const q = query(collection(fs, 'posts'), where('uid', '==', uid));
+            currentProfileListener = onSnapshot(q, (snap) => {
                 const userFeed = document.getElementById('user-posts-container');
                 userFeed.innerHTML = "";
                 let posts = [];
-                snap.forEach(c => { 
-                    const p = c.val();
-                    if(p.uid === uid) posts.push({id: c.key, ...p}); 
-                });
-                posts.reverse().forEach(p => { userFeed.innerHTML += generatePostHTML(p); });
+                snap.forEach(c => { posts.push({id: c.id, ...c.data()}); });
+                posts.sort((a,b) => b.timestamp - a.timestamp).forEach(p => { userFeed.innerHTML += generatePostHTML(p); });
                 toggleLoader(false);
             });
         }
@@ -568,7 +548,6 @@
         }
         window.visitFromInbox = () => { if(activeChatPartner) visitProfile(activeChatPartner.id); }
 
-        // --- GLOBAL RICH MARKUP RENDER SYSTEM ---
         window.generatePostHTML = function(p) {
             const likeCount = p.likes ? Object.keys(p.likes).length : 0;
             const cmtCount = p.comments ? Object.keys(p.comments).length : 0;
@@ -581,14 +560,9 @@
                 });
             }
 
-            // Media attachment conditional injection markup
             let mediaMarkup = "";
             if (p.media) {
-                if (p.mediaType === 'video') {
-                    mediaMarkup = `<div class="post-media-container"><video src="${p.media}" controls preload="metadata"></video></div>`;
-                } else {
-                    mediaMarkup = `<div class="post-media-container"><img src="${p.media}"></div>`;
-                }
+                mediaMarkup = p.mediaType === 'video' ? `<div class="post-media-container"><video src="${p.media}" controls preload="metadata"></video></div>` : `<div class="post-media-container"><img src="${p.media}"></div>`;
             }
 
             return `<div class="post-card"><div class="post-header"><img src="${p.pic || defaultPic}" class="post-avatar" onclick="visitProfile('${p.uid}')"><div><div class="post-user" onclick="visitProfile('${p.uid}')">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}</div><div class="post-content">${p.text || ""}</div>${mediaMarkup}<div class="post-stats"><span><i class="fas fa-thumbs-up"></i> ${likeCount}</span><span>${cmtCount} Comments</span></div><div class="post-actions"><span class="${isLiked?'liked':''}" onclick="toggleLike('${p.id}')"><i class="fas fa-thumbs-up"></i> Like</span><span onclick="showComments('${p.id}')"><i class="fas fa-comment"></i> Comment</span></div><div class="comment-section" id="comments-${p.id}"><div id="comment-list-${p.id}">${cmtHtml}</div><div class="comment-input-row"><input type="text" id="cmt-inp-${p.id}" placeholder="Write a comment..."><i class="fas fa-paper-plane" onclick="addComment('${p.id}')" style="color:#8c442c; margin-top:5px; cursor:pointer;"></i></div></div></div>`;
@@ -596,7 +570,7 @@
 
         window.createPost = async () => {
             const txt = document.getElementById('postText').value.trim();
-            if(!txt && !selectedPostMediaRaw) return; // Prevent raw empty posts
+            if(!txt && !selectedPostMediaRaw) return;
             toggleLoader(true);
             
             const postObj = { 
@@ -612,24 +586,38 @@
                 postObj.mediaType = selectedPostMediaType;
             }
 
-            await push(ref(db, 'posts'), postObj);
+            await addDoc(collection(fs, 'posts'), postObj);
             document.getElementById('postText').value = "";
             clearSelectedMedia();
             toggleLoader(false);
         }
 
         window.toggleLike = async (pid) => {
-            const postRef = ref(db, `posts/${pid}/likes/${currentUser.id}`);
-            const snap = await get(postRef);
-            if(snap.exists()) await remove(postRef); else await set(postRef, true);
+            const postRef = doc(fs, 'posts', pid);
+            const docSnap = await getDoc(postRef);
+            if(docSnap.exists()){
+                const data = docSnap.data();
+                let likes = data.likes || {};
+                if(likes[currentUser.id]) delete likes[currentUser.id];
+                else likes[currentUser.id] = true;
+                await setDoc(postRef, {likes}, {merge: true});
+            }
         }
 
         window.addComment = async (pid) => {
             const inp = document.getElementById(`cmt-inp-${pid}`);
             const txt = inp.value.trim();
             if(!txt) return;
-            await push(ref(db, `posts/${pid}/comments`), { uid: currentUser.id, name: currentUser.username, text: txt, timestamp: Date.now() });
-            inp.value = "";
+            
+            const postRef = doc(fs, 'posts', pid);
+            const docSnap = await getDoc(postRef);
+            if(docSnap.exists()){
+                let comments = docSnap.data().comments || {};
+                const cid = 'cmt_' + Date.now();
+                comments[cid] = { uid: currentUser.id, name: currentUser.username, text: txt, timestamp: Date.now() };
+                await setDoc(postRef, {comments}, {merge: true});
+                inp.value = "";
+            }
         }
 
         window.showComments = (pid) => {
@@ -637,8 +625,19 @@
             el.style.display = el.style.display === 'block' ? 'none' : 'block';
         }
 
-        window.deletePost = (pid) => { if(confirm("Delete this post?")) remove(ref(db, 'posts/' + pid)); }
-        window.deleteComment = (pid, cid) => { if(confirm("Delete comment?")) remove(ref(db, `posts/${pid}/comments/${cid}`)); }
+        window.deletePost = async (pid) => { if(confirm("Delete this post?")) await deleteDoc(doc(fs, 'posts', pid)); }
+        
+        window.deleteComment = async (pid, cid) => { 
+            if(confirm("Delete comment?")) {
+                const postRef = doc(fs, 'posts', pid);
+                const docSnap = await getDoc(postRef);
+                if(docSnap.exists()){
+                    let comments = docSnap.data().comments || {};
+                    delete comments[cid];
+                    await setDoc(postRef, {comments}, {merge: true});
+                }
+            } 
+        }
 
         window.openChatList = () => { pushState(); document.getElementById('users-page').classList.remove('hidden'); }
         window.closeChatList = () => document.getElementById('users-page').classList.add('hidden');
@@ -653,6 +652,7 @@
             document.getElementById('pPic').src = user.profilePic || defaultPic;
             const ids = [currentUser.id, user.id].sort();
             currentChatId = ids[0] + '_' + ids[1];
+            
             onValue(ref(db, 'chats/'+currentChatId), (snap) => {
                 const box = document.getElementById('chat-box');
                 box.innerHTML = "";
@@ -678,7 +678,8 @@
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const img = e.target.result;
-                await update(ref(db, 'users/' + currentUser.id), { profilePic: img });
+                await setDoc(doc(fs, 'users', currentUser.emailPhone), { profilePic: img }, { merge: true });
+                await setDoc(doc(fs, 'users_lookup', currentUser.id), { profilePic: img }, { merge: true });
                 currentUser.profilePic = img;
                 localStorage.setItem('user', JSON.stringify(currentUser));
                 location.reload();
@@ -690,7 +691,8 @@
             const newName = prompt("Enter new name:", currentUser.username);
             if (newName && newName.trim() !== "") {
                 toggleLoader(true);
-                await update(ref(db, 'users/' + currentUser.id), { username: newName.trim() });
+                await setDoc(doc(fs, 'users', currentUser.emailPhone), { username: newName.trim() }, { merge: true });
+                await setDoc(doc(fs, 'users_lookup', currentUser.id), { username: newName.trim() }, { merge: true });
                 currentUser.username = newName.trim();
                 localStorage.setItem('user', JSON.stringify(currentUser));
                 location.reload();
@@ -705,24 +707,17 @@
             document.getElementById('myPic').src = currentUser.profilePic || defaultPic;
             document.getElementById('postMyPic').src = currentUser.profilePic || defaultPic;
             
-            // Fixed Newsfeed listener with Push Notification Integration
-            onValue(ref(db, 'posts'), (snap) => {
+            onSnapshot(query(collection(fs, 'posts'), orderBy('timestamp', 'desc')), (snap) => {
                 const feed = document.getElementById('feed-container');
                 feed.innerHTML = ""; let posts = [];
                 snap.forEach(c => { 
-                    const p = c.val();
-                    posts.push({id: c.key, ...p}); 
+                    const p = c.data();
+                    posts.push({id: c.id, ...p}); 
                     
-                    // Trigger safe notification for new posts
                     if (p.uid !== currentUser.id && p.timestamp > lastPostTimestamp) {
                         let postText = p.text || "";
                         let cleanText = postText.length > 60 ? postText.substring(0, 60) + "..." : postText;
-                        triggerPushNotification(
-                            `New Post from ${p.name || "User"}`, 
-                            cleanText, 
-                            p.pic,
-                            () => { window.showNewsfeed(); }
-                        );
+                        triggerPushNotification(`New Post from ${p.name || "User"}`, cleanText, p.pic, () => { window.showNewsfeed(); });
                     }
                 });
 
@@ -730,16 +725,15 @@
                     lastPostTimestamp = Math.max(...posts.map(o => o.timestamp || 0));
                 }
 
-                posts.reverse().forEach(p => { feed.innerHTML += generatePostHTML(p); });
+                posts.forEach(p => { feed.innerHTML += generatePostHTML(p); });
                 toggleLoader(false);
             });
 
-            // Users listener with Background Chat Notification Manager
-            onValue(ref(db, 'users'), (snap) => {
+            onSnapshot(collection(fs, 'users'), (snap) => {
                 const list = document.getElementById('users-list');
                 list.innerHTML = "";
                 snap.forEach(c => {
-                    const u = c.val();
+                    const u = c.data();
                     if(u.id !== currentUser.id) {
                         const div = document.createElement('div');
                         div.className = 'chat-item';
@@ -747,7 +741,6 @@
                         div.onclick = () => openInbox(u);
                         list.appendChild(div);
 
-                        // Real-time Background Message Listener per user
                         const ids = [currentUser.id, u.id].sort();
                         const chatRoomId = ids[0] + '_' + ids[1];
                         
@@ -760,12 +753,7 @@
                                         if (activeChatPartner === null || activeChatPartner.id !== u.id) {
                                             let msgText = m.text || "";
                                             let cleanMsg = msgText.length > 50 ? msgText.substring(0, 50) + "..." : msgText;
-                                            triggerPushNotification(
-                                                `New Message from ${u.username}`,
-                                                cleanMsg,
-                                                u.profilePic,
-                                                () => { openInbox(u); }
-                                            );
+                                            triggerPushNotification(`New Message from ${u.username}`, cleanMsg, u.profilePic, () => { openInbox(u); });
                                         }
                                     }
                                     if(m.timestamp > lastMsgTime) { lastMsgTime = m.timestamp; }
