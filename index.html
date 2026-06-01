@@ -80,17 +80,25 @@
 
         /* Post Creation */
         .create-post { background: var(--card-bg); padding: 15px; border-bottom: 8px solid var(--border-color); }
-        .post-input-row { display: flex; gap: 10px; }
+        .post-input-row { display: flex; gap: 10px; align-items: center; }
         .post-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); cursor: pointer; }
         #postText { flex: 1; background: var(--input-bg); border: none; border-radius: 20px; padding: 10px 15px; color: var(--text-color); outline: none; }
-        .post-btn { background: #8c442c; color: white; border: none; padding: 8px 20px; border-radius: 20px; margin-top: 10px; float: right; font-weight: bold; cursor: pointer; }
+        
+        .post-options-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding: 0 5px; }
+        .media-upload-btn { color: #8c442c; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+        .media-preview-area { margin-top: 10px; position: relative; display: none; max-height: 200px; overflow: hidden; border-radius: 10px; border: 1px solid var(--border-color); }
+        .media-preview-area img, .media-preview-area video { width: 100%; height: auto; max-height: 200px; object-fit: contain; background: #000; }
+        .cancel-media-btn { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.7); color: #fff; border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .post-btn { background: #8c442c; color: white; border: none; padding: 8px 25px; border-radius: 20px; font-weight: bold; cursor: pointer; }
 
-        /* Post Card */
+        /* Post Card Content Media */
         .post-card { background: var(--card-bg); border-bottom: 6px solid var(--border-color); padding: 15px; color: var(--text-color); }
         .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
         .post-user { font-weight: bold; font-size: 15px; cursor: pointer; color: var(--text-color); }
         .post-time { font-size: 11px; opacity: 0.5; color: var(--text-color); }
         .post-content { font-size: 15px; line-height: 1.4; margin-bottom: 10px; word-wrap: break-word; color: var(--text-color); }
+        .post-media-container { width: 100%; border-radius: 8px; overflow: hidden; margin-bottom: 10px; background: #050505; border: 1px solid var(--border-color); }
+        .post-media-container img, .post-media-container video { width: 100%; max-height: 400px; object-fit: contain; display: block; }
         
         .post-stats { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; color: #aaa; border-bottom: 1px solid var(--border-color); }
         .post-actions { padding-top: 10px; display: flex; gap: 20px; color: #aaa; font-size: 14px; }
@@ -107,7 +115,7 @@
         .cmt-actions { margin-left: auto; display: flex; gap: 8px; font-size: 11px; opacity: 0.6; }
         .cmt-actions i { cursor: pointer; }
 
-        /* Profile Update */
+        /* Profile Update & Profile Visitors CSS */
         .profile-container { text-align: center; padding: 30px 20px; background: var(--card-bg); margin-bottom: 10px; border-bottom: 1px solid var(--border-color); }
         .profile-pic-wrapper { position: relative; display: inline-block; }
         .big-prof-pic { width: 110px; height: 110px; border-radius: 50%; border: 3px solid #8c442c; object-fit: cover; }
@@ -116,6 +124,16 @@
         #msg-btn-prof, .theme-btn { margin: 15px auto 0; padding: 8px 25px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; }
         #msg-btn-prof { display: none; background: #0084ff; color: white; }
         .theme-btn { background: #8c442c; color: white; display: inline-flex; align-items: center; gap: 8px; }
+
+        /* Profile Visitors Dashboard Element */
+        .visitors-section { background: var(--card-bg); padding: 15px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); text-align: left; }
+        .visitors-section h4 { color: #8c442c; font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .visitors-list { display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto; }
+        .visitor-item { display: flex; align-items: center; gap: 10px; padding: 6px; background: var(--input-bg); border-radius: 8px; }
+        .visitor-img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+        .visitor-info { flex: 1; font-size: 12px; }
+        .visitor-name { font-weight: bold; color: var(--text-color); cursor: pointer; }
+        .visitor-time { font-size: 10px; opacity: 0.5; color: var(--text-color); }
 
         /* Floating Chat Button */
         #chat-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #8c442c; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 500; cursor: pointer; }
@@ -172,8 +190,19 @@
                     <img id="postMyPic" class="post-avatar" src="" onclick="showMyProfile()">
                     <input type="text" id="postText" placeholder="What's on your mind?">
                 </div>
-                <button class="post-btn" onclick="createPost()">Post</button>
-                <div style="clear:both;"></div>
+                
+                <div id="mediaPreviewContainer" class="media-preview-area">
+                    <button class="cancel-media-btn" onclick="clearSelectedMedia()"><i class="fas fa-times"></i></button>
+                    <!-- Element dynamically injected by JS -->
+                </div>
+
+                <div class="post-options-row">
+                    <label for="postMediaInput" class="media-upload-btn">
+                        <i class="fas fa-images"></i> Photo / Video
+                    </label>
+                    <input type="file" id="postMediaInput" accept="image/*,video/*" style="display:none;" onchange="handlePostMediaSelect(event)">
+                    <button class="post-btn" onclick="createPost()">Post</button>
+                </div>
             </div>
             <div id="feed-container"></div>
         </div>
@@ -202,9 +231,17 @@
                         <i class="fas fa-moon"></i> <span>Dark Mode</span>
                     </button>
                 </div>
-
                 <p id="prof-tip" style="font-size: 13px; color: #8c442c; margin-top: 5px;"></p>
             </div>
+
+            <!-- Profile Visitors Element Dashboard Container -->
+            <div id="profile-visitors-dashboard" class="visitors-section hidden">
+                <h4><i class="fas fa-eye"></i> Profile Visitors</h4>
+                <div id="visitors-list-container" class="visitors-list">
+                     <!-- Dynamic visitor rows inject here -->
+                </div>
+            </div>
+
             <div id="user-posts-container"></div>
         </div>
 
@@ -238,7 +275,7 @@
 
     <script type="module">
         // --- Automatic Update Version System ---
-        const APP_VERSION = "1.0.3"; 
+        const APP_VERSION = "1.0.4"; // Bumping version for new schema updates
         const savedVersion = localStorage.getItem('app_version');
         if (savedVersion !== APP_VERSION) {
             localStorage.setItem('app_version', APP_VERSION);
@@ -264,7 +301,11 @@
         let currentUser = JSON.parse(localStorage.getItem('user')) || null;
         let currentChatId = null;
         let activeChatPartner = null; 
-        let currentProfileListener = null; // Profile listener reset handle
+        let currentProfileListener = null; 
+        let currentVisitorsListener = null; 
+        let selectedPostMediaRaw = null; 
+        let selectedPostMediaType = null; 
+
         const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
         // --- Safe Notification Handlers ---
@@ -386,11 +427,60 @@
 
         window.logout = () => { localStorage.clear(); location.reload(); }
 
-        // --- PROFILE LOGIC ---
+        // --- MEDIA HANDLING LOGIC FOR RICH POSTS ---
+        window.handlePostMediaSelect = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // File Size Warning for Realtime Database (Keeps data packet size secure)
+            if (file.size > 2 * 1024 * 1024) { 
+                alert("File size too large! Please choose a file under 2MB.");
+                event.target.value = "";
+                return;
+            }
+
+            selectedPostMediaType = file.type.startsWith('video/') ? 'video' : 'image';
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                selectedPostMediaRaw = e.target.result;
+                const container = document.getElementById('mediaPreviewContainer');
+                
+                // Dynamic clean slate inside container
+                const oldMedia = container.querySelector('img, video');
+                if (oldMedia) oldMedia.remove();
+
+                if (selectedPostMediaType === 'image') {
+                    const img = document.createElement('img');
+                    img.src = selectedPostMediaRaw;
+                    container.appendChild(img);
+                } else {
+                    const video = document.createElement('video');
+                    video.src = selectedPostMediaRaw;
+                    video.controls = true;
+                    container.appendChild(video);
+                }
+                container.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.clearSelectedMedia = () => {
+            selectedPostMediaRaw = null;
+            selectedPostMediaType = null;
+            document.getElementById('postMediaInput').value = "";
+            const container = document.getElementById('mediaPreviewContainer');
+            container.style.display = 'none';
+            const oldMedia = container.querySelector('img, video');
+            if (oldMedia) oldMedia.remove();
+        };
+
+        // --- PROFILE VISIT SYSTEM & VISITORS LOGIC ---
         window.visitProfile = async (uid) => {
             toggleLoader(true);
-            if(currentProfileListener) { currentProfileListener(); currentProfileListener = null; } // Prevent memory leak
-            
+            if(currentProfileListener) { currentProfileListener(); currentProfileListener = null; } 
+            if(currentVisitorsListener) { currentVisitorsListener(); currentVisitorsListener = null; }
+
             const snap = await get(ref(db, 'users/' + uid));
             if(!snap.exists()) { toggleLoader(false); return; }
             const userData = snap.val();
@@ -410,15 +500,50 @@
 
             const msgBtn = document.getElementById('msg-btn-prof');
             const themeBtn = document.getElementById('theme-toggle-btn');
+            const visitorsDashboard = document.getElementById('profile-visitors-dashboard');
             
             if(!isMe) {
                 msgBtn.style.display = 'block';
                 msgBtn.onclick = () => openInbox(userData);
                 themeBtn.style.display = 'none'; 
+                visitorsDashboard.classList.add('hidden');
+                
+                // Track Profile Visit Event silently in DB
+                await set(ref(db, `profile_visitors/${uid}/${currentUser.id}`), {
+                    uid: currentUser.id,
+                    name: currentUser.username,
+                    pic: currentUser.profilePic || defaultPic,
+                    timestamp: Date.now()
+                });
             } else {
                 msgBtn.style.display = 'none';
                 themeBtn.style.display = 'inline-flex';
                 updateThemeButton(localStorage.getItem('theme') || 'dark');
+                visitorsDashboard.classList.remove('hidden');
+                
+                // Live Stream profile visitors exclusively onto your own profile
+                currentVisitorsListener = onValue(ref(db, `profile_visitors/${currentUser.id}`), (vSnap) => {
+                    const listContainer = document.getElementById('visitors-list-container');
+                    listContainer.innerHTML = "";
+                    let visitors = [];
+                    vSnap.forEach(child => { visitors.push(child.val()); });
+                    
+                    if (visitors.length === 0) {
+                        listContainer.innerHTML = `<p style="font-size:12px; opacity:0.5; padding:10px;">No recent visitors yet.</p>`;
+                    } else {
+                        // Display fresh visitors on top chronologically
+                        visitors.sort((a,b) => b.timestamp - a.timestamp).forEach(v => {
+                            listContainer.innerHTML += `
+                                <div class="visitor-item">
+                                    <img src="${v.pic || defaultPic}" class="visitor-img">
+                                    <div class="visitor-info">
+                                        <span class="visitor-name" onclick="visitProfile('${v.uid}')">${v.name}</span>
+                                        <div class="visitor-time">Visited: ${new Date(v.timestamp).toLocaleString()}</div>
+                                    </div>
+                                </div>`;
+                        });
+                    }
+                });
             }
 
             currentProfileListener = onValue(ref(db, 'posts'), (snap) => {
@@ -437,12 +562,13 @@
         window.showMyProfile = () => visitProfile(currentUser.id);
         window.showNewsfeed = () => {
             if(currentProfileListener) { currentProfileListener(); currentProfileListener = null; }
+            if(currentVisitorsListener) { currentVisitorsListener(); currentVisitorsListener = null; }
             document.getElementById('profile-page').classList.add('hidden');
             document.getElementById('newsfeed-page').classList.remove('hidden');
         }
         window.visitFromInbox = () => { if(activeChatPartner) visitProfile(activeChatPartner.id); }
 
-        // --- GLOBAL FUNCTIONS ASSIGNED TO WINDOW FOR MODULE SCOPE ---
+        // --- GLOBAL RICH MARKUP RENDER SYSTEM ---
         window.generatePostHTML = function(p) {
             const likeCount = p.likes ? Object.keys(p.likes).length : 0;
             const cmtCount = p.comments ? Object.keys(p.comments).length : 0;
@@ -454,15 +580,41 @@
                     cmtHtml += `<div class="comment-item"><span class="comment-user" onclick="visitProfile('${c.uid}')">${c.name}:</span> ${c.text}${c.uid === currentUser.id ? `<div class="cmt-actions"><i class="fas fa-trash" onclick="deleteComment('${p.id}', '${cid}')"></i></div>` : ''}</div>`;
                 });
             }
-            return `<div class="post-card"><div class="post-header"><img src="${p.pic || defaultPic}" class="post-avatar" onclick="visitProfile('${p.uid}')"><div><div class="post-user" onclick="visitProfile('${p.uid}')">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}</div><div class="post-content">${p.text || ""}</div><div class="post-stats"><span><i class="fas fa-thumbs-up"></i> ${likeCount}</span><span>${cmtCount} Comments</span></div><div class="post-actions"><span class="${isLiked?'liked':''}" onclick="toggleLike('${p.id}')"><i class="fas fa-thumbs-up"></i> Like</span><span onclick="showComments('${p.id}')"><i class="fas fa-comment"></i> Comment</span></div><div class="comment-section" id="comments-${p.id}"><div id="comment-list-${p.id}">${cmtHtml}</div><div class="comment-input-row"><input type="text" id="cmt-inp-${p.id}" placeholder="Write a comment..."><i class="fas fa-paper-plane" onclick="addComment('${p.id}')" style="color:#8c442c; margin-top:5px; cursor:pointer;"></i></div></div></div>`;
+
+            // Media attachment conditional injection markup
+            let mediaMarkup = "";
+            if (p.media) {
+                if (p.mediaType === 'video') {
+                    mediaMarkup = `<div class="post-media-container"><video src="${p.media}" controls preload="metadata"></video></div>`;
+                } else {
+                    mediaMarkup = `<div class="post-media-container"><img src="${p.media}"></div>`;
+                }
+            }
+
+            return `<div class="post-card"><div class="post-header"><img src="${p.pic || defaultPic}" class="post-avatar" onclick="visitProfile('${p.uid}')"><div><div class="post-user" onclick="visitProfile('${p.uid}')">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}</div><div class="post-content">${p.text || ""}</div>${mediaMarkup}<div class="post-stats"><span><i class="fas fa-thumbs-up"></i> ${likeCount}</span><span>${cmtCount} Comments</span></div><div class="post-actions"><span class="${isLiked?'liked':''}" onclick="toggleLike('${p.id}')"><i class="fas fa-thumbs-up"></i> Like</span><span onclick="showComments('${p.id}')"><i class="fas fa-comment"></i> Comment</span></div><div class="comment-section" id="comments-${p.id}"><div id="comment-list-${p.id}">${cmtHtml}</div><div class="comment-input-row"><input type="text" id="cmt-inp-${p.id}" placeholder="Write a comment..."><i class="fas fa-paper-plane" onclick="addComment('${p.id}')" style="color:#8c442c; margin-top:5px; cursor:pointer;"></i></div></div></div>`;
         }
 
         window.createPost = async () => {
             const txt = document.getElementById('postText').value.trim();
-            if(!txt) return;
+            if(!txt && !selectedPostMediaRaw) return; // Prevent raw empty posts
             toggleLoader(true);
-            await push(ref(db, 'posts'), { uid: currentUser.id, name: currentUser.username, pic: currentUser.profilePic || defaultPic, text: txt, timestamp: Date.now() });
+            
+            const postObj = { 
+                uid: currentUser.id, 
+                name: currentUser.username, 
+                pic: currentUser.profilePic || defaultPic, 
+                text: txt, 
+                timestamp: Date.now() 
+            };
+
+            if (selectedPostMediaRaw) {
+                postObj.media = selectedPostMediaRaw;
+                postObj.mediaType = selectedPostMediaType;
+            }
+
+            await push(ref(db, 'posts'), postObj);
             document.getElementById('postText').value = "";
+            clearSelectedMedia();
             toggleLoader(false);
         }
 
