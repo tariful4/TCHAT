@@ -193,8 +193,7 @@
                 
                 <div id="mediaPreviewContainer" class="media-preview-area">
                     <button class="cancel-media-btn" onclick="clearSelectedMedia()"><i class="fas fa-times"></i></button>
-                    <!-- Element dynamically injected by JS -->
-                </div>
+                    </div>
 
                 <div class="post-options-row">
                     <label for="postMediaInput" class="media-upload-btn">
@@ -234,12 +233,10 @@
                 <p id="prof-tip" style="font-size: 13px; color: #8c442c; margin-top: 5px;"></p>
             </div>
 
-            <!-- Profile Visitors Element Dashboard Container -->
             <div id="profile-visitors-dashboard" class="visitors-section hidden">
                 <h4><i class="fas fa-eye"></i> Profile Visitors</h4>
                 <div id="visitors-list-container" class="visitors-list">
-                     <!-- Dynamic visitor rows inject here -->
-                </div>
+                     </div>
             </div>
 
             <div id="user-posts-container"></div>
@@ -282,17 +279,38 @@
             window.location.reload(true); 
         }
 
+        // --- Client-Side Domain & Security Guard Setup ---
+        const SEC_D = ["tariful4.github.io", "localhost", "127.0.0.1"];
+        const curHost = window.location.hostname;
+        const isGranted = SEC_D.some(d => curHost.includes(d));
+
+        // Obfuscating Firebase Configuration to protect raw credential scrapping
+        const _0xcnf = isGranted ? {
+            a: "QUl6YVN5QVQyMlgwNGx3R2phbmVHR1c5c0t6ZU82aFdWQUEzbjZn",
+            b: "dGNoYXQtYTk3MDcuZmlyZWJhc2VhcHAuY29t",
+            c: "aHR0cHM6Ly90Y2hhdC1hOTcwNy1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20=",
+            d: "dGNoYXQtYTk3MDc=",
+            e: "dGNoYXQtYTk3MDcuZmlyZWJhc2VzdG9yYWdlLmFwcA==",
+            f: "MzI0NzU2NTQ5Nzk2",
+            g: "MTozMjQ3NTY1NDk3OTY6d2ViOmY1NTdlYmFiMTZiZTllNTU0NWY2MzE="
+        } : null;
+
+        if(!_0xcnf){
+            document.body.innerHTML = "<div style='color:red; font-weight:bold; text-align:center; margin-top:20%; font-family:sans-serif;'>Security Violation: Unauthorized Domain Deployment!</div>";
+            throw new Error("Execution halted.");
+        }
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, push, onValue, get, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyAT22X04lwGjaneGGW9sKzeO6hWVAA3n6g",
-            authDomain: "tchat-a9707.firebaseapp.com",
-            databaseURL: "https://tchat-a9707-default-rtdb.firebaseio.com",
-            projectId: "tchat-a9707",
-            storageBucket: "tchat-a9707.firebasestorage.app",
-            messagingSenderId: "324756549796",
-            appId: "1:324756549796:web:f557ebab16be9e5545f631"
+            apiKey: atob(_0xcnf.a),
+            authDomain: atob(_0xcnf.b),
+            databaseURL: atob(_0xcnf.c),
+            projectId: atob(_0xcnf.d),
+            storageBucket: atob(_0xcnf.e),
+            messagingSenderId: atob(_0xcnf.f),
+            appId: atob(_0xcnf.g)
         };
 
         const app = initializeApp(firebaseConfig);
