@@ -1,5 +1,5 @@
 // --- Automatic Update Version System ---
-const APP_VERSION = "1.0.4"; // Bumping version for new schema updates
+const APP_VERSION = "1.0.6"; // Version bump for dual database routing
 const savedVersion = localStorage.getItem('app_version');
 if (savedVersion !== APP_VERSION) {
     localStorage.setItem('app_version', APP_VERSION);
@@ -9,7 +9,11 @@ if (savedVersion !== APP_VERSION) {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, push, onValue, get, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-const firebaseConfig = {
+// ==========================================
+// DATABASE A: নতুন প্রোজেক্ট (নিচে আপনার দেওয়া নতুন ক্রেডেনশিয়াল)
+// এখানে শুধু Registration, Login আর Profile Picture সেভ হবে।
+// ==========================================
+const firebaseConfigA = {
     apiKey: "AIzaSyAT22X04lwGjaneGGW9sKzeO6hWVAA3n6g",
     authDomain: "tchat-a9707.firebaseapp.com",
     databaseURL: "https://tchat-a9707-default-rtdb.firebaseio.com",
@@ -18,10 +22,27 @@ const firebaseConfig = {
     messagingSenderId: "324756549796",
     appId: "1:324756549796:web:f557ebab16be9e5545f631"
 };
+const appA = initializeApp(firebaseConfigA, "appA");
+const dbA = getDatabase(appA); // নতুন ডাটাবেজ হ্যান্ডলার
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+// ==========================================
+// DATABASE B: আগের প্রোজেক্ট 
+// এখানে চ্যাট, পোস্ট, লাইক, কমেন্ট ও ভিজিটর আগের মতোই থাকবে।
+// (এখানে আপনার আগের প্রোজেক্টের ক্রেডেনশিয়াল বসিয়ে দিন)
+// ==========================================
+const firebaseConfigB = {
+    apiKey: "AIzaSyBdq-mJ3S88htBOLPtHEry4XsVpywZ696s",
+    authDomain: "tchat-2bd05.firebaseapp.com",
+    databaseURL: "https://tchat-2bd05-default-rtdb.firebaseio.com", 
+    projectId: "tchat-2bd05",
+    storageBucket: "tchat-2bd05.firebasestorage.app",
+    messagingSenderId: "666079222900",
+    appId: "1:666079222900:web:390d3892488a3bb6dac521"
+};
+const appB = initializeApp(firebaseConfigB, "appB");
+const dbB = getDatabase(appB); // পুরনো বা মেইন ডেটাবেজ হ্যান্ডলার
 
+// --- অ্যাপ ভ্যারিয়েবলস ---
 let currentUser = JSON.parse(localStorage.getItem('user')) || null;
 let currentChatId = null;
 let activeChatPartner = null; 
@@ -70,55 +91,43 @@ window.toggleTheme = () => {
 function updateThemeButton(theme) {
     const btn = document.getElementById('theme-toggle-btn');
     if(!btn) return;
-    if(theme === 'light') {
-        btn.innerHTML = `<i class="fas fa-sun"></i> <span>Light Mode</span>`;
-    } else {
-        btn.innerHTML = `<i class="fas fa-moon"></i> <span>Dark Mode</span>`;
-    }
+    btn.innerHTML = theme === 'light' ? `<i class="fas fa-sun"></i> <span>Light Mode</span>` : `<i class="fas fa-moon"></i> <span>Dark Mode</span>`;
 }
 
 const savedTheme = localStorage.getItem('theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
 
-// --- Loader Logic ---
 function toggleLoader(show) {
     const loader = document.getElementById('loader-overlay');
     if (show) loader.classList.remove('hidden');
     else loader.classList.add('hidden');
 }
 
-// --- Back Button Logic ---
 window.addEventListener('popstate', () => {
     const inbox = document.getElementById('inbox-page');
     const users = document.getElementById('users-page');
     const profile = document.getElementById('profile-page');
-    
-    if (!inbox.classList.contains('hidden')) {
-        inbox.classList.add('hidden');
-        activeChatPartner = null;
-    } 
-    else if (!users.classList.contains('hidden')) {
-        users.classList.add('hidden');
-    }
-    else if (!profile.classList.contains('hidden')) {
-        showNewsfeed();
-    }
+    if (!inbox.classList.contains('hidden')) { inbox.classList.add('hidden'); activeChatPartner = null; } 
+    else if (!users.classList.contains('hidden')) { users.classList.add('hidden'); }
+    else if (!profile.classList.contains('hidden')) { showNewsfeed(); }
 });
 
 function pushState() { if (window.history.state !== "app") history.pushState("app", ""); }
 
-// --- AUTH ---
 window.toggleAuth = (reg) => {
     document.getElementById('login-form').style.display = reg ? 'none' : 'block';
     document.getElementById('reg-form').style.display = reg ? 'block' : 'none';
 }
 
+// --- AUTH (DATABASE A তে সেভ এবং চেক হবে) ---
 window.login = async () => {
     const ep = document.getElementById('loginEmailPhone').value.trim();
     const ps = document.getElementById('loginPass').value.trim();
     if(!ep || !ps) return;
     toggleLoader(true);
-    const snap = await get(ref(db, 'users'));
+    
+    // লগইন চেক হচ্ছে Database A (নতুন প্রোজেক্ট) থেকে
+    const snap = await get(ref(dbA, 'users'));
     let found = null;
     snap.forEach(c => { if(c.val().emailPhone === ep && c.val().password === ps) found = c.val(); });
     if(found) { localStorage.setItem('user', JSON.stringify(found)); location.reload(); }
@@ -130,12 +139,12 @@ window.register = async () => {
     const ps = document.getElementById('regPass').value.trim();
     if(!ep || !ps) return;
     toggleLoader(true);
-    const usersSnap = await get(ref(db, 'users'));
+    
+    // ইমেইল চেক হচ্ছে Database A (নতুন প্রোজেক্ট) এ
+    const usersSnap = await get(ref(dbA, 'users'));
     let alreadyExists = false;
     if(usersSnap.exists()) {
-        usersSnap.forEach(child => {
-            if(child.val().emailPhone === ep) alreadyExists = true;
-        });
+        usersSnap.forEach(child => { if(child.val().emailPhone === ep) alreadyExists = true; });
     }
     if(alreadyExists) {
         toggleLoader(false);
@@ -144,45 +153,35 @@ window.register = async () => {
     }
     const id = 'user_' + Date.now();
     const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
-    await set(ref(db, 'users/'+id), user);
+    
+    // রেজিস্ট্রেশন ডেটা সেভ হচ্ছে Database A (নতুন প্রোজেক্ট) এ
+    await set(ref(dbA, 'users/'+id), user);
     localStorage.setItem('user', JSON.stringify(user));
     location.reload();
 }
 
 window.logout = () => { localStorage.clear(); location.reload(); }
 
-// --- MEDIA HANDLING LOGIC FOR RICH POSTS ---
+// --- MEDIA HANDLING FOR POSTS (আগের মতোই থাকবে Base64 আকারে) ---
 window.handlePostMediaSelect = (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    
-    // File Size Warning for Realtime Database (Keeps data packet size secure)
     if (file.size > 2 * 1024 * 1024) { 
         alert("File size too large! Please choose a file under 2MB.");
         event.target.value = "";
         return;
     }
-
     selectedPostMediaType = file.type.startsWith('video/') ? 'video' : 'image';
-    
     const reader = new FileReader();
     reader.onload = (e) => {
         selectedPostMediaRaw = e.target.result;
         const container = document.getElementById('mediaPreviewContainer');
-        
-        // Dynamic clean slate inside container
         const oldMedia = container.querySelector('img, video');
         if (oldMedia) oldMedia.remove();
-
         if (selectedPostMediaType === 'image') {
-            const img = document.createElement('img');
-            img.src = selectedPostMediaRaw;
-            container.appendChild(img);
+            const img = document.createElement('img'); img.src = selectedPostMediaRaw; container.appendChild(img);
         } else {
-            const video = document.createElement('video');
-            video.src = selectedPostMediaRaw;
-            video.controls = true;
-            container.appendChild(video);
+            const video = document.createElement('video'); video.src = selectedPostMediaRaw; video.controls = true; container.appendChild(video);
         }
         container.style.display = 'block';
     };
@@ -190,22 +189,20 @@ window.handlePostMediaSelect = (event) => {
 };
 
 window.clearSelectedMedia = () => {
-    selectedPostMediaRaw = null;
-    selectedPostMediaType = null;
+    selectedPostMediaRaw = null; selectedPostMediaType = null;
     document.getElementById('postMediaInput').value = "";
-    const container = document.getElementById('mediaPreviewContainer');
-    container.style.display = 'none';
-    const oldMedia = container.querySelector('img, video');
-    if (oldMedia) oldMedia.remove();
+    const container = document.getElementById('mediaPreviewContainer'); container.style.display = 'none';
+    const oldMedia = container.querySelector('img, video'); if (oldMedia) oldMedia.remove();
 };
 
-// --- PROFILE VISIT SYSTEM & VISITORS LOGIC ---
+// --- PROFILE VISIT SYSTEM (ইউজার ডেটা আসবে DB A থেকে, ভিজিটর ও পোস্ট থাকবে DB B তে) ---
 window.visitProfile = async (uid) => {
     toggleLoader(true);
     if(currentProfileListener) { currentProfileListener(); currentProfileListener = null; } 
     if(currentVisitorsListener) { currentVisitorsListener(); currentVisitorsListener = null; }
 
-    const snap = await get(ref(db, 'users/' + uid));
+    // ইউজারের প্রোফাইল পিক এবং নাম আসবে Database A থেকে
+    const snap = await get(ref(dbA, 'users/' + uid));
     if(!snap.exists()) { toggleLoader(false); return; }
     const userData = snap.val();
     pushState();
@@ -227,63 +224,41 @@ window.visitProfile = async (uid) => {
     const visitorsDashboard = document.getElementById('profile-visitors-dashboard');
     
     if(!isMe) {
-        msgBtn.style.display = 'block';
-        msgBtn.onclick = () => openInbox(userData);
-        themeBtn.style.display = 'none'; 
-        visitorsDashboard.classList.add('hidden');
+        msgBtn.style.display = 'block'; msgBtn.onclick = () => openInbox(userData);
+        themeBtn.style.display = 'none'; visitorsDashboard.classList.add('hidden');
         
-        // Track Profile Visit Event silently in DB
-        await set(ref(db, `profile_visitors/${uid}/${currentUser.id}`), {
-            uid: currentUser.id,
-            name: currentUser.username,
-            pic: currentUser.profilePic || defaultPic,
-            timestamp: Date.now()
+        // ভিজিটর ট্র্যাকিং সেভ হবে Database B (ওল্ড প্রোজেক্ট) এ
+        await set(ref(dbB, `profile_visitors/${uid}/${currentUser.id}`), {
+            uid: currentUser.id, name: currentUser.username, pic: currentUser.profilePic || defaultPic, timestamp: Date.now()
         });
     } else {
-        msgBtn.style.display = 'none';
-        themeBtn.style.display = 'inline-flex';
+        msgBtn.style.display = 'none'; themeBtn.style.display = 'inline-flex';
         updateThemeButton(localStorage.getItem('theme') || 'dark');
         visitorsDashboard.classList.remove('hidden');
         
-        // Live Stream profile visitors exclusively onto your own profile
-        currentVisitorsListener = onValue(ref(db, `profile_visitors/${currentUser.id}`), (vSnap) => {
-            const listContainer = document.getElementById('visitors-list-container');
-            listContainer.innerHTML = "";
-            let visitors = [];
-            vSnap.forEach(child => { visitors.push(child.val()); });
-            
+        // ভিজিটর ট্র্যাকিং রিড হবে Database B থেকে
+        currentVisitorsListener = onValue(ref(dbB, `profile_visitors/${currentUser.id}`), (vSnap) => {
+            const listContainer = document.getElementById('visitors-list-container'); listContainer.innerHTML = "";
+            let visitors = []; vSnap.forEach(child => { visitors.push(child.val()); });
             if (visitors.length === 0) {
                 listContainer.innerHTML = `<p style="font-size:12px; opacity:0.5; padding:10px;">No recent visitors yet.</p>`;
             } else {
-                // Display fresh visitors on top chronologically
                 visitors.sort((a,b) => b.timestamp - a.timestamp).forEach(v => {
-                    listContainer.innerHTML += `
-                        <div class="visitor-item">
-                            <img src="${v.pic || defaultPic}" class="visitor-img">
-                            <div class="visitor-info">
-                                <span class="visitor-name"> ${v.name}</span>
-                                <div class="visitor-time">Visited: ${new Date(v.timestamp).toLocaleString()}</div>
-                            </div>
-                        </div>`;
+                    listContainer.innerHTML += `<div class="visitor-item"><img src="${v.pic || defaultPic}" class="visitor-img"><div class="visitor-info"><span class="visitor-name"> ${v.name}</span><div class="visitor-time">Visited: ${new Date(v.timestamp).toLocaleString()}</div></div></div>`;
                 });
             }
         });
     }
 
-    currentProfileListener = onValue(ref(db, 'posts'), (snap) => {
-        const userFeed = document.getElementById('user-posts-container');
-        userFeed.innerHTML = "";
-        let posts = [];
-        snap.forEach(c => { 
-            const p = c.val();
-            if(p.uid === uid) posts.push({id: c.key, ...p}); 
-        });
+    // পোস্ট লোড হবে Database B থেকে
+    currentProfileListener = onValue(ref(dbB, 'posts'), (snap) => {
+        const userFeed = document.getElementById('user-posts-container'); userFeed.innerHTML = "";
+        let posts = []; snap.forEach(c => { const p = c.val(); if(p.uid === uid) posts.push({id: c.key, ...p}); });
         posts.reverse().forEach(p => { userFeed.innerHTML += generatePostHTML(p); });
         toggleLoader(false);
     });
 }
 
-// Function assignments to window for inline HTML events
 window.visitProfile = visitProfile;
 window.showMyProfile = () => visitProfile(currentUser.id);
 window.showNewsfeed = () => {
@@ -294,7 +269,6 @@ window.showNewsfeed = () => {
 }
 window.visitFromInbox = () => { if(activeChatPartner) visitProfile(activeChatPartner.id); }
 
-// --- GLOBAL RICH MARKUP RENDER SYSTEM ---
 window.generatePostHTML = function(p) {
     const likeCount = p.likes ? Object.keys(p.likes).length : 0;
     const cmtCount = p.comments ? Object.keys(p.comments).length : 0;
@@ -306,70 +280,49 @@ window.generatePostHTML = function(p) {
             cmtHtml += `<div class="comment-item"><span class="comment-user" onclick="visitProfile('${c.uid}')">${c.name}:</span> ${c.text}${c.uid === currentUser.id ? `<div class="cmt-actions"><i class="fas fa-trash" onclick="deleteComment('${p.id}', '${cid}')"></i></div>` : ''}</div>`;
         });
     }
-
-    // Media attachment conditional injection markup
     let mediaMarkup = "";
     if (p.media) {
-        if (p.mediaType === 'video') {
-            mediaMarkup = `<div class="post-media-container"><video src="${p.media}" controls preload="metadata"></video></div>`;
-        } else {
-            mediaMarkup = `<div class="post-media-container"><img src="${p.media}"></div>`;
-        }
+        mediaMarkup = p.mediaType === 'video' ? `<div class="post-media-container"><video src="${p.media}" controls preload="metadata"></video></div>` : `<div class="post-media-container"><img src="${p.media}"></div>`;
     }
-
     return `<div class="post-card"><div class="post-header"><img src="${p.pic || defaultPic}" class="post-avatar" onclick="visitProfile('${p.uid}')"><div><div class="post-user" onclick="visitProfile('${p.uid}')">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}</div><div class="post-content">${p.text || ""}</div>${mediaMarkup}<div class="post-stats"><span><i class="fas fa-thumbs-up"></i> ${likeCount}</span><span>${cmtCount} Comments</span></div><div class="post-actions"><span class="${isLiked?'liked':''}" onclick="toggleLike('${p.id}')"><i class="fas fa-thumbs-up"></i> Like</span><span onclick="showComments('${p.id}')"><i class="fas fa-comment"></i> Comment</span></div><div class="comment-section" id="comments-${p.id}"><div id="comment-list-${p.id}">${cmtHtml}</div><div class="comment-input-row"><input type="text" id="cmt-inp-${p.id}" placeholder="Write a comment..."><i class="fas fa-paper-plane" onclick="addComment('${p.id}')" style="color:#8c442c; margin-top:5px; cursor:pointer;"></i></div></div></div>`;
 }
 
+// --- POST CREATION (Database B বা ওল্ড প্রোজেক্টে পোস্ট যাবে) ---
 window.createPost = async () => {
     const txt = document.getElementById('postText').value.trim();
-    if(!txt && !selectedPostMediaRaw) return; // Prevent raw empty posts
+    if(!txt && !selectedPostMediaRaw) return; 
     toggleLoader(true);
     
-    const postObj = { 
-        uid: currentUser.id, 
-        name: currentUser.username, 
-        pic: currentUser.profilePic || defaultPic, 
-        text: txt, 
-        timestamp: Date.now() 
-    };
+    const postObj = { uid: currentUser.id, name: currentUser.username, pic: currentUser.profilePic || defaultPic, text: txt, timestamp: Date.now() };
+    if (selectedPostMediaRaw) { postObj.media = selectedPostMediaRaw; postObj.mediaType = selectedPostMediaType; }
 
-    if (selectedPostMediaRaw) {
-        postObj.media = selectedPostMediaRaw;
-        postObj.mediaType = selectedPostMediaType;
-    }
-
-    await push(ref(db, 'posts'), postObj);
+    await push(ref(dbB, 'posts'), postObj); // ওল্ড ডেটাবেজে সেভ হচ্ছে
     document.getElementById('postText').value = "";
     window.clearSelectedMedia();
     toggleLoader(false);
 }
 
 window.toggleLike = async (pid) => {
-    const postRef = ref(db, `posts/${pid}/likes/${currentUser.id}`);
+    const postRef = ref(dbB, `posts/${pid}/likes/${currentUser.id}`);
     const snap = await get(postRef);
     if(snap.exists()) await remove(postRef); else await set(postRef, true);
 }
 
 window.addComment = async (pid) => {
-    const inp = document.getElementById(`cmt-inp-${pid}`);
-    const txt = inp.value.trim();
-    if(!txt) return;
-    await push(ref(db, `posts/${pid}/comments`), { uid: currentUser.id, name: currentUser.username, text: txt, timestamp: Date.now() });
+    const inp = document.getElementById(`cmt-inp-${pid}`); const txt = inp.value.trim(); if(!txt) return;
+    await push(ref(dbB, `posts/${pid}/comments`), { uid: currentUser.id, name: currentUser.username, text: txt, timestamp: Date.now() });
     inp.value = "";
 }
 
-window.showComments = (pid) => {
-    const el = document.getElementById(`comments-${pid}`);
-    el.style.display = el.style.display === 'block' ? 'none' : 'block';
-}
-
-window.deletePost = (pid) => { if(confirm("Delete this post?")) remove(ref(db, 'posts/' + pid)); }
-window.deleteComment = (pid, cid) => { if(confirm("Delete comment?")) remove(ref(db, `posts/${pid}/comments/${cid}`)); }
+window.showComments = (pid) => { const el = document.getElementById(`comments-${pid}`); el.style.display = el.style.display === 'block' ? 'none' : 'block'; }
+window.deletePost = (pid) => { if(confirm("Delete this post?")) remove(ref(dbB, 'posts/' + pid)); }
+window.deleteComment = (pid, cid) => { if(confirm("Delete comment?")) remove(ref(dbB, `posts/${pid}/comments/${cid}`)); }
 
 window.openChatList = () => { pushState(); document.getElementById('users-page').classList.remove('hidden'); }
 window.closeChatList = () => document.getElementById('users-page').classList.add('hidden');
 window.closeInbox = () => { document.getElementById('inbox-page').classList.add('hidden'); activeChatPartner = null; }
 
+// --- CHAT SYSTEM (Database B বা ওল্ড প্রোজেক্ট থেকে হ্যান্ডেল হবে) ---
 window.openInbox = (user) => {
     toggleLoader(true); activeChatPartner = user; pushState();
     document.getElementById('users-page').classList.remove('hidden');
@@ -379,9 +332,9 @@ window.openInbox = (user) => {
     document.getElementById('pPic').src = user.profilePic || defaultPic;
     const ids = [currentUser.id, user.id].sort();
     currentChatId = ids[0] + '_' + ids[1];
-    onValue(ref(db, 'chats/'+currentChatId), (snap) => {
-        const box = document.getElementById('chat-box');
-        box.innerHTML = "";
+    
+    onValue(ref(dbB, 'chats/'+currentChatId), (snap) => {
+        const box = document.getElementById('chat-box'); box.innerHTML = "";
         snap.forEach(c => {
             const m = c.val(); const isSent = m.sender === currentUser.id;
             box.innerHTML += `<div class="message-wrapper ${isSent?'sent':'received'}"><div class="message-bubble ${isSent?'sent':'received'}">${m.text}</div></div>`;
@@ -392,19 +345,20 @@ window.openInbox = (user) => {
 }
 
 window.sendMessage = async () => {
-    const input = document.getElementById('messageInput');
-    if(!input.value.trim()) return;
-    await push(ref(db, 'chats/'+currentChatId), { sender: currentUser.id, text: input.value, timestamp: Date.now() });
+    const input = document.getElementById('messageInput'); if(!input.value.trim()) return;
+    await push(ref(dbB, 'chats/'+currentChatId), { sender: currentUser.id, text: input.value, timestamp: Date.now() });
     input.value = "";
 }
 
+// --- PROFILE PICTURE UPLOAD (Database A বা নতুন প্রোজেক্টে সেভ হবে) ---
 window.uploadPhoto = (event) => {
     const file = event.target.files[0]; if (!file) return;
     toggleLoader(true);
     const reader = new FileReader();
     reader.onload = async (e) => {
         const img = e.target.result;
-        await update(ref(db, 'users/' + currentUser.id), { profilePic: img });
+        // ইমেজ বা এভাটার আপডেট হবে নতুন Database A তে
+        await update(ref(dbA, 'users/' + currentUser.id), { profilePic: img });
         currentUser.profilePic = img;
         localStorage.setItem('user', JSON.stringify(currentUser));
         location.reload();
@@ -416,7 +370,8 @@ window.changeName = async () => {
     const newName = prompt("Enter new name:", currentUser.username);
     if (newName && newName.trim() !== "") {
         toggleLoader(true);
-        await update(ref(db, 'users/' + currentUser.id), { username: newName.trim() });
+        // নাম আপডেট হবে নতুন Database A তে
+        await update(ref(dbA, 'users/' + currentUser.id), { username: newName.trim() });
         currentUser.username = newName.trim();
         localStorage.setItem('user', JSON.stringify(currentUser));
         location.reload();
@@ -431,67 +386,44 @@ if(currentUser) {
     document.getElementById('myPic').src = currentUser.profilePic || defaultPic;
     document.getElementById('postMyPic').src = currentUser.profilePic || defaultPic;
     
-    // Fixed Newsfeed listener with Push Notification Integration
-    onValue(ref(db, 'posts'), (snap) => {
-        const feed = document.getElementById('feed-container');
-        feed.innerHTML = ""; let posts = [];
+    // নিউজফিড পোস্ট আসবে ওল্ড Database B থেকে
+    onValue(ref(dbB, 'posts'), (snap) => {
+        const feed = document.getElementById('feed-container'); feed.innerHTML = ""; let posts = [];
         snap.forEach(c => { 
-            const p = c.val();
-            posts.push({id: c.key, ...p}); 
-            
-            // Trigger safe notification for new posts
+            const p = c.val(); posts.push({id: c.key, ...p}); 
             if (p.uid !== currentUser.id && p.timestamp > lastPostTimestamp) {
-                let postText = p.text || "";
-                let cleanText = postText.length > 60 ? postText.substring(0, 60) + "..." : postText;
-                triggerPushNotification(
-                    `New Post from ${p.name || "User"}`, 
-                    cleanText, 
-                    p.pic,
-                    () => { window.showNewsfeed(); }
-                );
+                let postText = p.text || ""; let cleanText = postText.length > 60 ? postText.substring(0, 60) + "..." : postText;
+                triggerPushNotification(`New Post from ${p.name || "User"}`, cleanText, p.pic, () => { window.showNewsfeed(); });
             }
         });
-
-        if(posts.length > 0) {
-            lastPostTimestamp = Math.max(...posts.map(o => o.timestamp || 0));
-        }
-
+        if(posts.length > 0) { lastPostTimestamp = Math.max(...posts.map(o => o.timestamp || 0)); }
         posts.reverse().forEach(p => { feed.innerHTML += window.generatePostHTML(p); });
         toggleLoader(false);
     });
 
-    // Users listener with Background Chat Notification Manager
-    onValue(ref(db, 'users'), (snap) => {
-        const list = document.getElementById('users-list');
-        list.innerHTML = "";
+    // চ্যাট ইউজারদের লিস্ট আসবে নতুন Database A থেকে (যেহেতু রেজিস্ট্রেশন ডেটা ওখানে আছে)
+    onValue(ref(dbA, 'users'), (snap) => {
+        const list = document.getElementById('users-list'); list.innerHTML = "";
         snap.forEach(c => {
             const u = c.val();
             if(u.id !== currentUser.id) {
-                const div = document.createElement('div');
-                div.className = 'chat-item';
+                const div = document.createElement('div'); div.className = 'chat-item';
                 div.innerHTML = `<img src="${u.profilePic || defaultPic}"><div><h4>${u.username}</h4><small>Tap to chat</small></div>`;
                 div.onclick = () => window.openInbox(u);
                 list.appendChild(div);
 
-                // Real-time Background Message Listener per user
-                const ids = [currentUser.id, u.id].sort();
-                const chatRoomId = ids[0] + '_' + ids[1];
+                const ids = [currentUser.id, u.id].sort(); const chatRoomId = ids[0] + '_' + ids[1];
                 
+                // কিন্তু মেসেজ নোটিফিকেশন চেক হবে ওল্ড Database B থেকে
                 if (!globalChatListeners[chatRoomId]) {
                     let lastMsgTime = Date.now();
-                    globalChatListeners[chatRoomId] = onValue(ref(db, 'chats/' + chatRoomId), (chatSnap) => {
+                    globalChatListeners[chatRoomId] = onValue(ref(dbB, 'chats/' + chatRoomId), (chatSnap) => {
                         chatSnap.forEach(msgNode => {
                             const m = msgNode.val();
                             if (m.sender === u.id && m.timestamp > lastMsgTime) {
                                 if (activeChatPartner === null || activeChatPartner.id !== u.id) {
-                                    let msgText = m.text || "";
-                                    let cleanMsg = msgText.length > 50 ? msgText.substring(0, 50) + "..." : msgText;
-                                    triggerPushNotification(
-                                        `New Message from ${u.username}`,
-                                        cleanMsg,
-                                        u.profilePic,
-                                        () => { window.openInbox(u); }
-                                    );
+                                    let msgText = m.text || ""; let cleanMsg = msgText.length > 50 ? msgText.substring(0, 50) + "..." : msgText;
+                                    triggerPushNotification(`New Message from ${u.username}`, cleanMsg, u.profilePic, () => { window.openInbox(u); });
                                 }
                             }
                             if(m.timestamp > lastMsgTime) { lastMsgTime = m.timestamp; }
