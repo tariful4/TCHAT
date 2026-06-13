@@ -6,10 +6,14 @@ if (savedVersion !== APP_VERSION) {
     window.location.reload(true); 
 }
 
+// --- Firebase Modular Imports ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, push, onValue, get, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+// Firestore SDK Imports for Database A
+import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig = {
+// --- Database B Configuration (Realtime Database - Unchanged) ---
+const firebaseConfigB = {
     apiKey: "AIzaSyAT22X04lwGjaneGGW9sKzeO6hWVAA3n6g",
     authDomain: "tchat-a9707.firebaseapp.com",
     databaseURL: "https://tchat-a9707-default-rtdb.firebaseio.com",
@@ -19,8 +23,23 @@ const firebaseConfig = {
     appId: "1:324756549796:web:f557ebab16be9e5545f631"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+// --- Database A Configuration (Firestore - New) ---
+const firebaseConfigA = {
+    apiKey: "AIzaSyBdq-mJ3S88htBOLPtHEry4XsVpywZ696s",
+    authDomain: "tchat-2bd05.firebaseapp.com",
+    projectId: "tchat-2bd05",
+    storageBucket: "tchat-2bd05.firebasestorage.app",
+    messagingSenderId: "666079222900",
+    appId: "1:666079222900:web:390d3892488a3bb6dac521",
+    measurementId: "G-0JWXZ3HQDS"
+};
+
+// Initialize Both Apps
+const appB = initializeApp(firebaseConfigB, "dbB");
+const db = getDatabase(appB); // Realtime DB remains as 'db'
+
+const appA = initializeApp(firebaseConfigA, "dbA");
+const firestore = getFirestore(appA); // Firestore Instance
 
 let currentUser = JSON.parse(localStorage.getItem('user')) || null;
 let currentChatId = null;
@@ -107,7 +126,7 @@ window.addEventListener('popstate', () => {
 
 function pushState() { if (window.history.state !== "app") history.pushState("app", ""); }
 
-// --- AUTH ---
+// --- AUTH (Updated to use Firestore/Database A) ---
 window.toggleAuth = (reg) => {
     document.getElementById('login-form').style.display = reg ? 'none' : 'block';
     document.getElementById('reg-form').style.display = reg ? 'block' : 'none';
@@ -118,11 +137,29 @@ window.login = async () => {
     const ps = document.getElementById('loginPass').value.trim();
     if(!ep || !ps) return;
     toggleLoader(true);
-    const snap = await get(ref(db, 'users'));
-    let found = null;
-    snap.forEach(c => { if(c.val().emailPhone === ep && c.val().password === ps) found = c.val(); });
-    if(found) { localStorage.setItem('user', JSON.stringify(found)); location.reload(); }
-    else { toggleLoader(false); alert("Invalid login!"); }
+
+    try {
+        // Querying Firestore users collection
+        const q = query(collection(firestore, "users"), where("emailPhone", "==", ep), where("password", "==", ps));
+        const querySnapshot = await getDocs(q);
+        
+        let found = null;
+        querySnapshot.forEach((doc) => {
+            found = doc.data();
+        });
+
+        if(found) { 
+            localStorage.setItem('user', JSON.stringify(found)); 
+            location.reload(); 
+        } else { 
+            toggleLoader(false); 
+            alert("Invalid login!"); 
+        }
+    } catch (error) {
+        toggleLoader(false);
+        console.error("Login Error: ", error);
+        alert("Login failed!");
+    }
 }
 
 window.register = async () => {
@@ -130,23 +167,34 @@ window.register = async () => {
     const ps = document.getElementById('regPass').value.trim();
     if(!ep || !ps) return;
     toggleLoader(true);
-    const usersSnap = await get(ref(db, 'users'));
-    let alreadyExists = false;
-    if(usersSnap.exists()) {
-        usersSnap.forEach(child => {
-            if(child.val().emailPhone === ep) alreadyExists = true;
-        });
-    }
-    if(alreadyExists) {
+
+    try {
+        // Check duplication in Firestore
+        const q = query(collection(firestore, "users"), where("emailPhone", "==", ep));
+        const querySnapshot = await getDocs(q);
+        
+        if(!querySnapshot.empty) {
+            toggleLoader(false);
+            alert("This Email or Phone is already registered! Please login.");
+            return;
+        }
+
+        const id = 'user_' + Date.now();
+        const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
+        
+        // Save to Firestore (Database A)
+        await setDoc(doc(firestore, "users", id), user);
+        
+        // Dynamic Sync to Realtime DB (Database B) for maintaining chat/post references
+        await set(ref(db, 'users/'+id), user);
+
+        localStorage.setItem('user', JSON.stringify(user));
+        location.reload();
+    } catch (error) {
         toggleLoader(false);
-        alert("This Email or Phone is already registered! Please login.");
-        return;
+        console.error("Registration Error: ", error);
+        alert("Registration failed!");
     }
-    const id = 'user_' + Date.now();
-    const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
-    await set(ref(db, 'users/'+id), user);
-    localStorage.setItem('user', JSON.stringify(user));
-    location.reload();
 }
 
 window.logout = () => { localStorage.clear(); location.reload(); }
@@ -156,7 +204,6 @@ window.handlePostMediaSelect = (event) => {
     const file = event.target.files[0];
     if (!file) return;
     
-    // File Size Warning for Realtime Database (Keeps data packet size secure)
     if (file.size > 2 * 1024 * 1024) { 
         alert("File size too large! Please choose a file under 2MB.");
         event.target.value = "";
@@ -170,7 +217,6 @@ window.handlePostMediaSelect = (event) => {
         selectedPostMediaRaw = e.target.result;
         const container = document.getElementById('mediaPreviewContainer');
         
-        // Dynamic clean slate inside container
         const oldMedia = container.querySelector('img, video');
         if (oldMedia) oldMedia.remove();
 
@@ -232,7 +278,6 @@ window.visitProfile = async (uid) => {
         themeBtn.style.display = 'none'; 
         visitorsDashboard.classList.add('hidden');
         
-        // Track Profile Visit Event silently in DB
         await set(ref(db, `profile_visitors/${uid}/${currentUser.id}`), {
             uid: currentUser.id,
             name: currentUser.username,
@@ -245,7 +290,6 @@ window.visitProfile = async (uid) => {
         updateThemeButton(localStorage.getItem('theme') || 'dark');
         visitorsDashboard.classList.remove('hidden');
         
-        // Live Stream profile visitors exclusively onto your own profile
         currentVisitorsListener = onValue(ref(db, `profile_visitors/${currentUser.id}`), (vSnap) => {
             const listContainer = document.getElementById('visitors-list-container');
             listContainer.innerHTML = "";
@@ -255,7 +299,6 @@ window.visitProfile = async (uid) => {
             if (visitors.length === 0) {
                 listContainer.innerHTML = `<p style="font-size:12px; opacity:0.5; padding:10px;">No recent visitors yet.</p>`;
             } else {
-                // Display fresh visitors on top chronologically
                 visitors.sort((a,b) => b.timestamp - a.timestamp).forEach(v => {
                     listContainer.innerHTML += `
                         <div class="visitor-item">
@@ -283,7 +326,6 @@ window.visitProfile = async (uid) => {
     });
 }
 
-// Function assignments to window for inline HTML events
 window.visitProfile = visitProfile;
 window.showMyProfile = () => visitProfile(currentUser.id);
 window.showNewsfeed = () => {
@@ -307,7 +349,6 @@ window.generatePostHTML = function(p) {
         });
     }
 
-    // Media attachment conditional injection markup
     let mediaMarkup = "";
     if (p.media) {
         if (p.mediaType === 'video') {
@@ -322,7 +363,7 @@ window.generatePostHTML = function(p) {
 
 window.createPost = async () => {
     const txt = document.getElementById('postText').value.trim();
-    if(!txt && !selectedPostMediaRaw) return; // Prevent raw empty posts
+    if(!txt && !selectedPostMediaRaw) return; 
     toggleLoader(true);
     
     const postObj = { 
@@ -398,16 +439,28 @@ window.sendMessage = async () => {
     input.value = "";
 }
 
+// --- PROFILE PICTURE UPLOAD (Updated to save in Firestore/Database A) ---
 window.uploadPhoto = (event) => {
     const file = event.target.files[0]; if (!file) return;
     toggleLoader(true);
     const reader = new FileReader();
     reader.onload = async (e) => {
         const img = e.target.result;
-        await update(ref(db, 'users/' + currentUser.id), { profilePic: img });
-        currentUser.profilePic = img;
-        localStorage.setItem('user', JSON.stringify(currentUser));
-        location.reload();
+        try {
+            // Save Image base64 string into Firestore Document
+            await updateDoc(doc(firestore, "users", currentUser.id), { profilePic: img });
+            
+            // Backup update to Realtime DB for keeping post/chat feeds active
+            await update(ref(db, 'users/' + currentUser.id), { profilePic: img });
+            
+            currentUser.profilePic = img;
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            location.reload();
+        } catch (error) {
+            toggleLoader(false);
+            console.error("Photo upload error: ", error);
+            alert("Failed to update profile picture.");
+        }
     };
     reader.readAsDataURL(file);
 };
@@ -416,13 +469,18 @@ window.changeName = async () => {
     const newName = prompt("Enter new name:", currentUser.username);
     if (newName && newName.trim() !== "") {
         toggleLoader(true);
+        // Updating name in Firestore (Database A)
+        await updateDoc(doc(firestore, "users", currentUser.id), { username: newName.trim() });
+        // Keeping Database B in sync
         await update(ref(db, 'users/' + currentUser.id), { username: newName.trim() });
+        
         currentUser.username = newName.trim();
         localStorage.setItem('user', JSON.stringify(currentUser));
         location.reload();
     }
 };
 
+// --- APP INIT LOGIC ---
 if(currentUser) {
     toggleLoader(true);
     requestNotificationPermission();
@@ -439,7 +497,6 @@ if(currentUser) {
             const p = c.val();
             posts.push({id: c.key, ...p}); 
             
-            // Trigger safe notification for new posts
             if (p.uid !== currentUser.id && p.timestamp > lastPostTimestamp) {
                 let postText = p.text || "";
                 let cleanText = postText.length > 60 ? postText.substring(0, 60) + "..." : postText;
@@ -473,7 +530,6 @@ if(currentUser) {
                 div.onclick = () => window.openInbox(u);
                 list.appendChild(div);
 
-                // Real-time Background Message Listener per user
                 const ids = [currentUser.id, u.id].sort();
                 const chatRoomId = ids[0] + '_' + ids[1];
                 
