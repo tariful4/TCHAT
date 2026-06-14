@@ -17,12 +17,12 @@ import { getDatabase, ref as rRef, push, onValue } from "https://www.gstatic.com
 // --- Database A (Firestore - Auth & Profiles) ---
 // Note: databaseURL is not required for Firestore.
 const firebaseConfigA = {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+    apiKey: "AIzaSyBdq-mJ3S88htBOLPtHEry4XsVpywZ696s",
+    authDomain: "tchat-2bd05.firebaseapp.com",
+    projectId: "tchat-2bd05",
+    storageBucket: "tchat-2bd05.firebasestorage.app",
+    messagingSenderId: "666079222900",
+    appId: "1:666079222900:web:390d3892488a3bb6dac521"
 };
 
 // --- Database B (Firestore - Post, Like, Comment, Profile Visits) ---
