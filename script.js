@@ -11,11 +11,8 @@ import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://ww
 import { getDatabase, ref as rRef, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ==========================================
-// EMPTY PROMPT DATABASE CONFIGURATIONS
+// DATABASE CONFIGURATIONS
 // ==========================================
-
-// --- Database A (Firestore - Auth & Profiles) ---
-// Note: databaseURL is not required for Firestore.
 const firebaseConfigA = {
     apiKey: "AIzaSyBdq-mJ3S88htBOLPtHEry4XsVpywZ696s",
     authDomain: "tchat-2bd05.firebaseapp.com",
@@ -25,8 +22,6 @@ const firebaseConfigA = {
     appId: "1:666079222900:web:390d3892488a3bb6dac521"
 };
 
-// --- Database B (Firestore - Post, Like, Comment, Profile Visits) ---
-// Note: databaseURL is not required for Firestore.
 const firebaseConfigB = {
     apiKey: "AIzaSyCd8I9wgA6wRiLIK811anaHbGjm9SQVHro",
     authDomain: "tchat-ebe69.firebaseapp.com",
@@ -36,8 +31,6 @@ const firebaseConfigB = {
     appId: "1:311814351008:web:4293c759ac3f0f24a5c1c5"
 };
 
-// --- Database C (Realtime Database - Messages) ---
-// Note: databaseURL is mandatory for Realtime Database.
 const firebaseConfigC = {
     apiKey: "AIzaSyAT22X04lwGjaneGGW9sKzeO6hWVAA3n6g",
     authDomain: "tchat-a9707.firebaseapp.com",
@@ -47,19 +40,15 @@ const firebaseConfigC = {
     appId: "1:324756549796:web:f557ebab16be9e5545f631"
 };
 
-// ==========================================
 // SYSTEM INITIALIZATION
-// ==========================================
 const appA = initializeApp(firebaseConfigA, "appA");
 const appB = initializeApp(firebaseConfigB, "appB");
 const appC = initializeApp(firebaseConfigC, "appC");
 
 const dbA = getFirestore(appA);
 const storageA = getStorage(appA); 
-
 const dbB = getFirestore(appB);
 const storageB = getStorage(appB); 
-
 const rtdbC = getDatabase(appC);
 
 let currentUser = JSON.parse(localStorage.getItem('user')) || null;
@@ -74,97 +63,67 @@ const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
 function toggleLoader(show) {
     const loader = document.getElementById('loader-overlay');
-    if (show) loader.classList.remove('hidden');
-    else loader.classList.add('hidden');
+    if (loader) {
+        if (show) loader.classList.remove('hidden');
+        else loader.classList.add('hidden');
+    }
 }
 
-function requestNotificationPermission() {
-    try {
-        if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
-            Notification.requestPermission();
-        }
-    } catch (e) { console.log("Notification error", e); }
-}
-
-function triggerPushNotification(title, body, iconUrl, clickCallback) {
-    try {
-        if ("Notification" in window && Notification.permission === "granted") {
-            const options = { body: body || "", icon: iconUrl || defaultPic, vibrate: [200, 100, 200] };
-            const notification = new Notification(title, options);
-            if (clickCallback) {
-                notification.onclick = function(e) {
-                    e.preventDefault(); window.focus(); clickCallback(); notification.close();
-                };
-            }
-        }
-    } catch (e) { console.log("Notification fail", e); }
-}
-
-let lastPostTimestamp = Date.now();
-let globalChatListeners = {};
-
-function updateThemeButton(theme) {
-    const btn = document.getElementById('theme-toggle-btn');
-    if(!btn) return;
-    btn.innerHTML = theme === 'light' ? `<i class="fas fa-sun"></i> <span>Light Mode</span>` : `<i class="fas fa-moon"></i> <span>Dark Mode</span>`;
-}
-
-window.toggleTheme = () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const targetTheme = currentTheme === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', targetTheme);
-    localStorage.setItem('theme', targetTheme);
-    updateThemeButton(targetTheme);
-};
-document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
-
-window.addEventListener('popstate', () => {
-    const inbox = document.getElementById('inbox-page');
-    const users = document.getElementById('users-page');
-    const profile = document.getElementById('profile-page');
+// --- Auth System (FIXED) ---
+async function loginUser() {
+    const ep = document.getElementById('loginEmailPhone').value.trim();
+    const ps = document.getElementById('loginPass').value.trim();
+    if(!ep || !ps) { alert("Please enter credentials!"); return; }
+    toggleLoader(true);
     
-    if (!inbox.classList.contains('hidden')) { inbox.classList.add('hidden'); activeChatPartner = null; } 
-    else if (!users.classList.contains('hidden')) { users.classList.add('hidden'); }
-    else if (!profile.classList.contains('hidden')) { window.showNewsfeed(); }
-});
-function pushState() { if (window.history.state !== "app") history.pushState("app", ""); }
+    try {
+        const qSnap = await getDocs(query(collection(dbA, "users"), where("emailPhone", "==", ep), where("password", "==", ps)));
+        if(!qSnap.empty) {
+            const userData = qSnap.docs[0].data();
+            localStorage.setItem('user', JSON.stringify(userData)); 
+            window.location.reload(); 
+        } else { 
+            toggleLoader(false); 
+            alert("Invalid credentials!"); 
+        }
+    } catch (e) {
+        toggleLoader(false);
+        console.error("Login Failed", e);
+    }
+}
 
-// --- Auth System ---
+async function registerUser() {
+    const ep = document.getElementById('regEmailPhone').value.trim();
+    const ps = document.getElementById('regPass').value.trim();
+    if(!ep || !ps) { alert("Please fill up all fields!"); return; }
+    toggleLoader(true);
+    
+    try {
+        const qSnap = await getDocs(query(collection(dbA, "users"), where("emailPhone", "==", ep)));
+        if(!qSnap.empty) { 
+            toggleLoader(false); 
+            alert("Account already exists!"); 
+            return; 
+        }
+        
+        const id = 'user_' + Date.now();
+        const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
+        
+        await setDoc(doc(dbA, "users", id), user);
+        localStorage.setItem('user', JSON.stringify(user));
+        window.location.reload();
+    } catch (e) {
+        toggleLoader(false);
+        console.error("Registration Failed", e);
+    }
+}
+
 window.toggleAuth = (reg) => {
     document.getElementById('login-form').style.display = reg ? 'none' : 'block';
     document.getElementById('reg-form').style.display = reg ? 'block' : 'none';
 }
 
-window.login = async () => {
-    const ep = document.getElementById('loginEmailPhone').value.trim();
-    const ps = document.getElementById('loginPass').value.trim();
-    if(!ep || !ps) return;
-    toggleLoader(true);
-    
-    const qSnap = await getDocs(query(collection(dbA, "users"), where("emailPhone", "==", ep), where("password", "==", ps)));
-    if(!qSnap.empty) {
-        localStorage.setItem('user', JSON.stringify(qSnap.docs[0].data())); 
-        location.reload(); 
-    } else { toggleLoader(false); alert("Invalid credentials!"); }
-}
-
-window.register = async () => {
-    const ep = document.getElementById('regEmailPhone').value.trim();
-    const ps = document.getElementById('regPass').value.trim();
-    if(!ep || !ps) return;
-    toggleLoader(true);
-    
-    const qSnap = await getDocs(query(collection(dbA, "users"), where("emailPhone", "==", ep)));
-    if(!qSnap.empty) { toggleLoader(false); alert("Account already exists!"); return; }
-    
-    const id = 'user_' + Date.now();
-    const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
-    await setDoc(doc(dbA, "users", id), user);
-    localStorage.setItem('user', JSON.stringify(user));
-    location.reload();
-}
-
-window.logout = () => { localStorage.clear(); location.reload(); }
+window.logout = () => { localStorage.clear(); window.location.reload(); }
 
 // --- Media Processing ---
 window.handlePostMediaSelect = (event) => {
@@ -196,7 +155,7 @@ window.visitProfile = async (uid) => {
     if(currentVisitorsListener) { currentVisitorsListener(); currentVisitorsListener = null; }
 
     const dSnap = await getDoc(doc(dbA, "users", uid)); if(!dSnap.exists()) { toggleLoader(false); return; }
-    const userData = dSnap.data(); pushState();
+    const userData = dSnap.data();
     
     document.getElementById('newsfeed-page').classList.add('hidden');
     document.getElementById('users-page').classList.add('hidden');
@@ -269,7 +228,6 @@ window.generatePostHTML = function(p) {
     return `<div class="post-card"><div class="post-header"><img src="${p.pic || defaultPic}" class="post-avatar" onclick="visitProfile('${p.uid}')"><div><div class="post-user" onclick="visitProfile('${p.uid}')">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn" onclick="deletePost('${p.id}')"></i>` : ''}</div><div class="post-content">${p.text || ""}</div>${mediaMarkup}<div class="post-stats"><span><i class="fas fa-thumbs-up"></i> ${likeCount}</span><span style="cursor:pointer;" onclick="showComments('${p.id}')">${cmtCount} Comments</span></div><div class="post-actions"><span class="${isLiked?'liked':''}" onclick="toggleLike('${p.id}', ${isLiked?true:false})"><i class="fas fa-thumbs-up"></i> Like</span><span onclick="showComments('${p.id}')"><i class="fas fa-comment"></i> Comment</span></div><div class="comment-section" id="comments-${p.id}"><div id="comment-list-${p.id}"></div><div class="comment-input-row"><input type="text" id="cmt-inp-${p.id}" placeholder="Write a comment..."><i class="fas fa-paper-plane" onclick="addComment('${p.id}')" style="color:#8c442c; margin-top:5px; cursor:pointer;"></i></div></div></div>`;
 }
 
-// --- Feed Feedbacks ---
 window.createPost = async () => {
     const txt = document.getElementById('postText').value.trim(); if(!txt && !selectedPostMediaFile) return; toggleLoader(true);
     const pId = 'post_' + Date.now();
@@ -320,7 +278,7 @@ window.deleteComment = async (pid, cid) => {
 
 // --- Messages Setup ---
 window.openInbox = (user) => {
-    toggleLoader(true); activeChatPartner = user; pushState();
+    toggleLoader(true); activeChatPartner = user;
     document.getElementById('users-page').classList.remove('hidden');
     document.getElementById('profile-page').classList.add('hidden');
     document.getElementById('inbox-page').classList.remove('hidden');
@@ -345,14 +303,13 @@ window.sendMessage = async () => {
     input.value = "";
 }
 
-// --- Dynamic Settings ---
 window.uploadPhoto = (event) => {
     const file = event.target.files[0]; if (!file) return; toggleLoader(true);
     const sRefProf = sRef(storageA, `profiles/${currentUser.id}_avatar`);
     uploadBytes(sRefProf, file).then(async () => {
         const downloadURL = await getDownloadURL(sRefProf);
         await updateDoc(doc(dbA, "users", currentUser.id), { profilePic: downloadURL });
-        currentUser.profilePic = downloadURL; localStorage.setItem('user', JSON.stringify(currentUser)); location.reload();
+        currentUser.profilePic = downloadURL; localStorage.setItem('user', JSON.stringify(currentUser)); window.location.reload();
     });
 };
 
@@ -361,14 +318,31 @@ window.changeName = async () => {
     if (newName && newName.trim() !== "") {
         toggleLoader(true);
         await updateDoc(doc(dbA, "users", currentUser.id), { username: newName.trim() });
-        currentUser.username = newName.trim(); localStorage.setItem('user', JSON.stringify(currentUser)); location.reload();
+        currentUser.username = newName.trim(); localStorage.setItem('user', JSON.stringify(currentUser)); window.location.reload();
     }
 };
 
-// --- Initialization & Binding ---
+function updateThemeButton(theme) {
+    const btn = document.getElementById('theme-toggle-btn');
+    if(!btn) return;
+    btn.innerHTML = theme === 'light' ? `<i class="fas fa-sun"></i> <span>Light Mode</span>` : `<i class="fas fa-moon"></i> <span>Dark Mode</span>`;
+}
+
+window.toggleTheme = () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const targetTheme = currentTheme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', targetTheme);
+    localStorage.setItem('theme', targetTheme);
+    updateThemeButton(targetTheme);
+};
+document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+
+// ==========================================
+// EVENT BINDINGS & APP INITIALIZATION
+// ==========================================
 document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("loginBtn")?.addEventListener("click", () => window.login());
-    document.getElementById("registerBtn")?.addEventListener("click", () => window.register());
+    document.getElementById("loginBtn")?.addEventListener("click", loginUser);
+    document.getElementById("registerBtn")?.addEventListener("click", registerUser);
     document.getElementById("switchToRegister")?.addEventListener("click", () => window.toggleAuth(true));
     document.getElementById("switchToLogin")?.addEventListener("click", () => window.toggleAuth(false));
     
@@ -378,7 +352,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("postMyPic")?.addEventListener("click", () => window.visitProfile(currentUser.id));
     document.getElementById("backToFeedBtn")?.addEventListener("click", () => window.showNewsfeed());
     
-    document.getElementById("chat-toggle-btn")?.addEventListener("click", () => { pushState(); document.getElementById('users-page').classList.remove('hidden'); });
+    document.getElementById("chat-toggle-btn")?.addEventListener("click", () => { document.getElementById('users-page').classList.remove('hidden'); });
     document.getElementById("closeChatListBtn")?.addEventListener("click", () => document.getElementById('users-page').classList.add('hidden'));
     document.getElementById("closeInboxBtn")?.addEventListener("click", () => { document.getElementById('inbox-page').classList.add('hidden'); activeChatPartner = null; });
     document.getElementById("sendMessageBtn")?.addEventListener("click", () => window.sendMessage());
@@ -395,7 +369,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("pName")?.addEventListener("click", () => { if(activeChatPartner) window.visitProfile(activeChatPartner.id); });
 
     if(currentUser) {
-        toggleLoader(true); requestNotificationPermission();
         document.getElementById('auth-container').style.display = 'none';
         document.getElementById('app-interface').style.display = 'flex';
         document.getElementById('myPic').src = currentUser.profilePic || defaultPic;
@@ -403,15 +376,9 @@ document.addEventListener("DOMContentLoaded", () => {
         
         onSnapshot(query(collection(dbB, "posts"), orderBy("timestamp", "desc")), (snap) => {
             const feed = document.getElementById('feed-container'); feed.innerHTML = "";
-            let updatesNotified = false;
             snap.forEach(docBox => {
                 const p = docBox.data(); feed.innerHTML += window.generatePostHTML(p);
-                if (!updatesNotified && p.uid !== currentUser.id && p.timestamp > lastPostTimestamp) {
-                    triggerPushNotification(`New Post from ${p.name || "User"}`, p.text || "Attached Media", p.pic, () => window.showNewsfeed());
-                    updatesNotified = true;
-                }
             });
-            if(!snap.empty) lastPostTimestamp = Date.now();
             toggleLoader(false);
         });
 
@@ -423,24 +390,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     const div = document.createElement('div'); div.className = 'chat-item';
                     div.innerHTML = `<img src="${u.profilePic || defaultPic}"><div><h4>${u.username}</h4><small>Tap to chat</small></div>`;
                     div.onclick = () => window.openInbox(u); list.appendChild(div);
-
-                    const ids = [currentUser.id, u.id].sort(); const chatRoomId = ids[0] + '_' + ids[1];
-                    if (!globalChatListeners[chatRoomId]) {
-                        let lastMsgTime = Date.now();
-                        globalChatListeners[chatRoomId] = onValue(rRef(rtdbC, 'chats/' + chatRoomId), (chatSnap) => {
-                            chatSnap.forEach(msgNode => {
-                                const m = msgNode.val();
-                                if (m.sender === u.id && m.timestamp > lastMsgTime) {
-                                    if (activeChatPartner === null || activeChatPartner.id !== u.id) {
-                                        triggerPushNotification(`New Message from ${u.username}`, m.text || "", u.profilePic, () => window.openInbox(u));
-                                    }
-                                }
-                                if(m.timestamp > lastMsgTime) lastMsgTime = m.timestamp;
-                            });
-                        });
-                    }
                 }
             });
         });
+    } else {
+        document.getElementById('auth-container').style.display = 'flex';
+        document.getElementById('app-interface').style.display = 'none';
+        toggleLoader(false);
     }
 });
