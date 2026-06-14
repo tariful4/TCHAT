@@ -39,12 +39,12 @@ const firebaseConfigB = {
 // --- Database C (Realtime Database - Messages) ---
 // Note: databaseURL is mandatory for Realtime Database.
 const firebaseConfigC = {
-    apiKey: "",
-    authDomain: "",
-    databaseURL: "", 
-    projectId: "",
-    messagingSenderId: "",
-    appId: ""
+    apiKey: "AIzaSyAT22X04lwGjaneGGW9sKzeO6hWVAA3n6g",
+    authDomain: "tchat-a9707.firebaseapp.com",
+    databaseURL: "https://tchat-a9707-default-rtdb.firebaseio.com", 
+    projectId: "tchat-a9707",
+    messagingSenderId: "324756549796",
+    appId: "1:324756549796:web:f557ebab16be9e5545f631"
 };
 
 // ==========================================
