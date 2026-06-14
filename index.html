@@ -8,20 +8,8 @@
     <meta http-equiv="Expires" content="0">
     
     <meta name="description" content="TCHAT - A social platform developed by Tariful. Contact: tariful404@gmail.com, Phone: 01727515610">
-    <meta name="keywords" content="TCHAT, Tariful, tariful404@gmail.com, 01727515610, Messenger, Social App">
+    <meta name="keywords" content="TCHAT, Tariful, Messenger, Social App">
     <meta name="author" content="Tariful">
-
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Person",
-      "name": "Tariful",
-      "url": "https://tariful4.github.io/TCHAT/",
-      "email": "tariful404@gmail.com",
-      "telephone": "+8801727515610",
-      "jobTitle": "Developer"
-    }
-    </script>
 
     <title>TCHAT</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -43,6 +31,7 @@
             <button id="loginBtn">Login</button>
             <p class="toggle-txt" id="switchToRegister">Create New Account</p>
         </div>
+        
         <div id="reg-form" class="auth-card" style="display:none;">
             <h1 class="app-logo">✨ Register ✨</h1>
             <input type="text" id="regEmailPhone" placeholder="Email or Phone">
@@ -52,7 +41,7 @@
         </div>
     </div>
 
-    <div id="app-interface">
+    <div id="app-interface" style="display: none;">
         <div class="header">
             <img id="myPic" class="post-avatar" src="">
             <h2 id="feedTabBtn">Feed</h2>
@@ -139,7 +128,9 @@
         <div id="chat-box"></div>
         <div class="chat-footer">
             <input type="text" id="messageInput" placeholder="Type a message...">
-            <button id="sendMessageBtn" style="background:transparent; border:none; color:#0084ff; font-size:22px; cursor: pointer;"><i class="fas fa-paper-plane"></i></button>
+            <button id="sendMessageBtn" style="background:transparent; border:none; color:#0084ff; font-size:22px; cursor: pointer;">
+                <i class="fas fa-paper-plane"></i>
+            </button>
         </div>
     </div>
 
