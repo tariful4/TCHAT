@@ -28,12 +28,12 @@ const firebaseConfigA = {
 // --- Database B (Firestore - Post, Like, Comment, Profile Visits) ---
 // Note: databaseURL is not required for Firestore.
 const firebaseConfigB = {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+    apiKey: "AIzaSyCd8I9wgA6wRiLIK811anaHbGjm9SQVHro",
+    authDomain: "tchat-ebe69.firebaseapp.com",
+    projectId: "tchat-ebe69",
+    storageBucket: "tchat-ebe69.firebasestorage.app",
+    messagingSenderId: "311814351008",
+    appId: "1:311814351008:web:4293c759ac3f0f24a5c1c5"
 };
 
 // --- Database C (Realtime Database - Messages) ---
