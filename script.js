@@ -1,17 +1,10 @@
-const APP_VERSION = "1.0.5"; 
-const savedVersion = localStorage.getItem('app_version');
-if (savedVersion !== APP_VERSION) {
-    localStorage.setItem('app_version', APP_VERSION);
-    window.location.reload(true); 
-}
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, orderBy, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { getDatabase, ref as rRef, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ==========================================
-// DATABASE CONFIGURATIONS
+// FIREBASE CONFIGURATIONS
 // ==========================================
 const firebaseConfigA = {
     apiKey: "AIzaSyBdq-mJ3S88htBOLPtHEry4XsVpywZ696s",
@@ -40,7 +33,7 @@ const firebaseConfigC = {
     appId: "1:324756549796:web:f557ebab16be9e5545f631"
 };
 
-// SYSTEM INITIALIZATION
+// INITIALIZE APPS
 const appA = initializeApp(firebaseConfigA, "appA");
 const appB = initializeApp(firebaseConfigB, "appB");
 const appC = initializeApp(firebaseConfigC, "appC");
@@ -69,63 +62,92 @@ function toggleLoader(show) {
     }
 }
 
-// --- Auth System (FIXED) ---
-async function loginUser() {
+// ==========================================
+// FIXED AUTH FUNCTIONS (DIRECT WINDOW BINDING)
+// ==========================================
+window.loginUser = async function() {
     const ep = document.getElementById('loginEmailPhone').value.trim();
     const ps = document.getElementById('loginPass').value.trim();
-    if(!ep || !ps) { alert("Please enter credentials!"); return; }
+    
+    if(!ep || !ps) { 
+        alert("Please fill all fields"); 
+        return; 
+    }
     toggleLoader(true);
     
     try {
-        const qSnap = await getDocs(query(collection(dbA, "users"), where("emailPhone", "==", ep), where("password", "==", ps)));
+        const usersRef = collection(dbA, "users");
+        const q = query(usersRef, where("emailPhone", "==", ep), where("password", "==", ps));
+        const qSnap = await getDocs(q);
+        
         if(!qSnap.empty) {
             const userData = qSnap.docs[0].data();
             localStorage.setItem('user', JSON.stringify(userData)); 
             window.location.reload(); 
         } else { 
             toggleLoader(false); 
-            alert("Invalid credentials!"); 
+            alert("Wrong Email/Phone or Password!"); 
         }
-    } catch (e) {
+    } catch (error) {
         toggleLoader(false);
-        console.error("Login Failed", e);
+        console.error("Login Error Details: ", error);
+        alert("Login system failed. Please check internet or Firebase rules.");
     }
 }
 
-async function registerUser() {
+window.registerUser = async function() {
     const ep = document.getElementById('regEmailPhone').value.trim();
     const ps = document.getElementById('regPass').value.trim();
-    if(!ep || !ps) { alert("Please fill up all fields!"); return; }
+    
+    if(!ep || !ps) { 
+        alert("Please fill all fields"); 
+        return; 
+    }
     toggleLoader(true);
     
     try {
-        const qSnap = await getDocs(query(collection(dbA, "users"), where("emailPhone", "==", ep)));
+        const usersRef = collection(dbA, "users");
+        const q = query(usersRef, where("emailPhone", "==", ep));
+        const qSnap = await getDocs(q);
+        
         if(!qSnap.empty) { 
             toggleLoader(false); 
-            alert("Account already exists!"); 
+            alert("This Email or Phone is already registered!"); 
             return; 
         }
         
         const id = 'user_' + Date.now();
-        const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
+        const user = { 
+            id: id, 
+            emailPhone: ep, 
+            username: ep.split('@')[0], 
+            password: ps, 
+            profilePic: defaultPic 
+        };
         
         await setDoc(doc(dbA, "users", id), user);
         localStorage.setItem('user', JSON.stringify(user));
         window.location.reload();
-    } catch (e) {
+    } catch (error) {
         toggleLoader(false);
-        console.error("Registration Failed", e);
+        console.error("Registration Error Details: ", error);
+        alert("Registration failed. Make sure Firestore rules are set to public.");
     }
 }
 
-window.toggleAuth = (reg) => {
+window.toggleAuth = function(reg) {
     document.getElementById('login-form').style.display = reg ? 'none' : 'block';
     document.getElementById('reg-form').style.display = reg ? 'block' : 'none';
 }
 
-window.logout = () => { localStorage.clear(); window.location.reload(); }
+window.logout = function() { 
+    localStorage.clear(); 
+    window.location.reload(); 
+}
 
-// --- Media Processing ---
+// ==========================================
+// OTHER APP FEATURES (WINDOW BOUND)
+// ==========================================
 window.handlePostMediaSelect = (event) => {
     const file = event.target.files[0]; if (!file) return;
     selectedPostMediaFile = file;
@@ -148,7 +170,6 @@ window.clearSelectedMedia = () => {
     const oldMedia = container.querySelector('img, video'); if (oldMedia) oldMedia.remove();
 };
 
-// --- Profiler & Visit System ---
 window.visitProfile = async (uid) => {
     toggleLoader(true);
     if(currentProfileListener) { currentProfileListener(); currentProfileListener = null; } 
@@ -276,7 +297,6 @@ window.deleteComment = async (pid, cid) => {
     }
 }
 
-// --- Messages Setup ---
 window.openInbox = (user) => {
     toggleLoader(true); activeChatPartner = user;
     document.getElementById('users-page').classList.remove('hidden');
@@ -335,14 +355,14 @@ window.toggleTheme = () => {
     localStorage.setItem('theme', targetTheme);
     updateThemeButton(targetTheme);
 };
-document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
 
 // ==========================================
-// EVENT BINDINGS & APP INITIALIZATION
+// KICKSTART & EXPLICIT EVENT BINDING
 // ==========================================
-document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("loginBtn")?.addEventListener("click", loginUser);
-    document.getElementById("registerBtn")?.addEventListener("click", registerUser);
+function initApp() {
+    // বাইন্ডিং সরাসরি ফাংশনের সাথে ম্যাপ করা হলো
+    document.getElementById("loginBtn")?.addEventListener("click", () => window.loginUser());
+    document.getElementById("registerBtn")?.addEventListener("click", () => window.registerUser());
     document.getElementById("switchToRegister")?.addEventListener("click", () => window.toggleAuth(true));
     document.getElementById("switchToLogin")?.addEventListener("click", () => window.toggleAuth(false));
     
@@ -398,4 +418,11 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('app-interface').style.display = 'none';
         toggleLoader(false);
     }
-});
+}
+
+// ডোমে কোনো লেট না রেখে সরাসরি রান করানো
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initApp);
+} else {
+    initApp();
+}
