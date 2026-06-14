@@ -153,14 +153,14 @@
             <h1 class="app-logo">TCHAT</h1>
             <input type="text" id="loginEmailPhone" placeholder="Email or Phone">
             <input type="password" id="loginPass" placeholder="Password">
-            <button onclick="login()">Login</button>
+            <button type="button" onclick="login()">Login</button>
             <p class="toggle-txt" onclick="toggleAuth(true)">Create New Account</p>
         </div>
         <div id="reg-form" class="auth-card" style="display:none;">
             <h1 class="app-logo">✨ Register ✨</h1>
             <input type="text" id="regEmailPhone" placeholder="Email or Phone">
             <input type="password" id="regPass" placeholder="Password">
-            <button onclick="register()">Register</button>
+            <button type="button" onclick="register()">Register</button>
             <p class="toggle-txt" onclick="toggleAuth(false)">Back to Login</p>
         </div>
     </div>
@@ -257,7 +257,7 @@
     </div>
 
     <script type="module">
-        const APP_VERSION = "2.0.1"; 
+        const APP_VERSION = "2.0.2"; 
         const savedVersion = localStorage.getItem('app_version');
         if (savedVersion !== APP_VERSION) {
             localStorage.setItem('app_version', APP_VERSION);
@@ -269,7 +269,7 @@
         import { initializeFirestore, getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // ========================================================
-        // DATABASE CONFIGURATIONS (এখানে আপনার Config গুলো বসাবেন)
+        // DATABASE CONFIGURATIONS
         // ========================================================
         const firebaseConfigAuth = {
             apiKey: "AIzaSyCOwXc5gc46tz1UjPEqcA993YS62clgV_k",
@@ -321,8 +321,10 @@
 
         function toggleLoader(show) {
             const loader = document.getElementById('loader-overlay');
-            if (show) loader.classList.remove('hidden');
-            else loader.classList.add('hidden');
+            if (loader) {
+                if (show) loader.classList.remove('hidden');
+                else loader.classList.add('hidden');
+            }
         }
 
         // Global HTML Expose Function 
@@ -343,7 +345,17 @@
         }
         window.generatePostHTML = generatePostHTML;
 
-        // --- AUTH LOGIC ---
+        // --- AUTH LOGIC (Fixed & Windows Exposed) ---
+        window.toggleAuth = (showReg) => {
+            if(showReg) {
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('reg-form').style.display = 'block';
+            } else {
+                document.getElementById('login-form').style.display = 'block';
+                document.getElementById('reg-form').style.display = 'none';
+            }
+        }
+
         window.login = async () => {
             const ep = document.getElementById('loginEmailPhone').value.trim();
             const ps = document.getElementById('loginPass').value.trim();
@@ -363,10 +375,14 @@
         window.register = async () => {
             const ep = document.getElementById('regEmailPhone').value.trim();
             const ps = document.getElementById('regPass').value.trim();
-            if(!ep || !ps) return;
+            if(!ep || !ps) {
+                alert("Please enter both Email/Phone and Password!");
+                return;
+            }
             toggleLoader(true);
             try {
-                const querySnapshot = await getDocs(collection(dbAuth, "users"));
+                const usersRef = collection(dbAuth, "users");
+                const querySnapshot = await getDocs(usersRef);
                 let alreadyExists = false;
                 querySnapshot.forEach((doc) => {
                     if(doc.data().emailPhone === ep) alreadyExists = true;
@@ -377,8 +393,13 @@
                 const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
                 await setDoc(doc(dbAuth, "users", id), user);
                 localStorage.setItem('user', JSON.stringify(user));
+                toggleLoader(false);
                 location.reload();
-            } catch(e) { toggleLoader(false); alert("Error registering: " + e.message); }
+            } catch(e) { 
+                toggleLoader(false); 
+                console.error("Firestore Save Error:", e);
+                alert("Error registering: " + e.message); 
+            }
         }
 
         window.logout = () => { localStorage.clear(); location.reload(); }
