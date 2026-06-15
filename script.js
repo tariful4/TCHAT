@@ -258,6 +258,9 @@ const visitProfile = async (uid) => {
         });
         toggleLoader(false);
     });
+
+    // হিস্ট্রি স্টেট পুশ করা যাতে ব্যাক বাটনে কাজ করে
+    window.history.pushState({ page: 'profile' }, 'Profile');
 }
 
 const showNewsfeed = () => {
@@ -415,6 +418,9 @@ const openInbox = (user) => {
         });
         box.scrollTop = box.scrollHeight; toggleLoader(false);
     });
+
+    // ইনবক্স এর জন্য হিস্ট্রি স্টেট
+    window.history.pushState({ page: 'inbox' }, 'Inbox');
 }
 
 const sendMessage = async () => {
@@ -492,6 +498,34 @@ document.addEventListener('click', async (e) => {
     }
 });
 
+// DEVICE BACK BUTTON HANDLER LOGIC (NEW ADDED)
+// ========================================================
+window.addEventListener('popstate', (event) => {
+    const inboxPage = document.getElementById('inbox-page');
+    const usersPage = document.getElementById('users-page');
+    const profilePage = document.getElementById('profile-page');
+
+    if (!inboxPage.classList.contains('hidden')) {
+        inboxPage.classList.add('hidden');
+        activeChatPartner = null;
+        window.history.pushState({ page: 'home' }, 'Home');
+    } else if (!usersPage.classList.contains('hidden')) {
+        usersPage.classList.add('hidden');
+        window.history.pushState({ page: 'home' }, 'Home');
+    } else if (!profilePage.classList.contains('hidden')) {
+        showNewsfeed();
+        window.history.pushState({ page: 'home' }, 'Home');
+    } else {
+        // ইউজার যদি হোম/নিউজফিডে থাকে, অ্যাপ ক্লোজ না করে কনফার্মেশন প্রম্পট দেখাবে
+        if (confirm("Do you want to exit TCHAT?")) {
+            navigator.app ? navigator.app.exitApp() : window.close();
+        } else {
+            window.history.pushState({ page: 'home' }, 'Home');
+        }
+    }
+});
+// ========================================================
+
 // Bind UI Static Listeners
 document.getElementById('toRegTxt').addEventListener('click', () => toggleAuth(true));
 document.getElementById('toLoginTxt').addEventListener('click', () => toggleAuth(false));
@@ -504,12 +538,12 @@ document.getElementById('createPostBtn').addEventListener('click', createPost);
 document.getElementById('myPic').addEventListener('click', () => visitProfile(currentUser.id));
 document.getElementById('postMyPic').addEventListener('click', () => visitProfile(currentUser.id));
 document.getElementById('feedHomeLink').addEventListener('click', showNewsfeed);
-document.getElementById('profileBackBtn').addEventListener('click', showNewsfeed);
+document.getElementById('profileBackBtn').addEventListener('click', () => { showNewsfeed(); window.history.back(); });
 document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
 document.getElementById('loadMoreBtn').addEventListener('click', loadMorePosts);
-document.getElementById('chat-toggle-btn').addEventListener('click', () => document.getElementById('users-page').classList.remove('hidden'));
-document.getElementById('chatListCloseBtn').addEventListener('click', () => document.getElementById('users-page').classList.add('hidden'));
-document.getElementById('inboxCloseBtn').addEventListener('click', () => { document.getElementById('inbox-page').classList.add('hidden'); activeChatPartner = null; });
+document.getElementById('chat-toggle-btn').addEventListener('click', () => { document.getElementById('users-page').classList.remove('hidden'); window.history.pushState({ page: 'users' }, 'Users'); });
+document.getElementById('chatListCloseBtn').addEventListener('click', () => { document.getElementById('users-page').classList.add('hidden'); window.history.back(); });
+document.getElementById('inboxCloseBtn').addEventListener('click', () => { document.getElementById('inbox-page').classList.add('hidden'); activeChatPartner = null; window.history.back(); });
 document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
 document.getElementById('fileInput').addEventListener('change', uploadPhoto);
 document.getElementById('edit-name-icon').addEventListener('click', changeName);
@@ -528,6 +562,9 @@ if(currentUser) {
     document.getElementById('postMyPic').src = currentUser.profilePic || defaultPic;
     
     fetchInitialPosts();
+
+    // ইনিশিয়াল হোম স্টেট পুশ
+    window.history.pushState({ page: 'home' }, 'Home');
 
     onSnapshot(collection(dbAuth, "users"), (snap) => {
         const list = document.getElementById('users-list'); list.innerHTML = "";
