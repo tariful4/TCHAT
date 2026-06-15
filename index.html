@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <meta name="description" content="TCHAT - A social platform developed by Tariful. Contact: tariful404@gmail.com, Phone: 01727515610">
+    <meta name="keywords" content="TCHAT, Tariful, Messenger, Social App">
+    <meta name="author" content="Tariful">
+
+    <title>TCHAT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="loader-overlay" class="hidden">
+        <div class="dots-loader">
+            <div></div><div></div><div></div>
+        </div>
+    </div>
+
+    <div id="auth-container">
+        <div id="login-form" class="auth-card">
+            <h1 class="app-logo">TCHAT</h1>
+            <input type="text" id="loginEmailPhone" placeholder="Email or Phone">
+            <input type="password" id="loginPass" placeholder="Password">
+            <button type="button" id="loginBtn">Login</button>
+            <p class="toggle-txt" id="toRegTxt">Create New Account</p>
+        </div>
+        <div id="reg-form" class="auth-card" style="display:none;">
+            <h1 class="app-logo">✨ Register ✨</h1>
+            <input type="text" id="regEmailPhone" placeholder="Email or Phone">
+            <input type="password" id="regPass" placeholder="Password">
+            <button type="button" id="regBtn">Register</button>
+            <p class="toggle-txt" id="toLoginTxt">Back to Login</p>
+        </div>
+    </div>
+
+    <div id="app-interface">
+        <div class="header">
+            <img id="myPic" class="post-avatar" src="">
+            <h2 id="feedHomeLink">Feed</h2>
+            <i class="fas fa-sign-out-alt" id="logoutBtn" style="color:#8c442c; font-size: 18px;"></i>
+        </div>
+
+        <div id="newsfeed-page" class="page-content">
+            <div class="create-post">
+                <div class="post-input-row">
+                    <img id="postMyPic" class="post-avatar" src="">
+                    <input type="text" id="postText" placeholder="What's on your mind?">
+                </div>
+                
+                <div id="mediaPreviewContainer" class="media-preview-area">
+                    <button class="cancel-media-btn" id="clearMediaBtn"><i class="fas fa-times"></i></button>
+                </div>
+
+                <div class="post-options-row">
+                    <label for="postMediaInput" class="media-upload-btn">
+                        <i class="fas fa-images"></i> Photo / Video
+                    </label>
+                    <input type="file" id="postMediaInput" accept="image/*,video/*" style="display:none;">
+                    <button class="post-btn" id="createPostBtn">Post</button>
+                </div>
+            </div>
+            <div id="feed-container"></div>
+            <div id="load-more-container" class="load-more-container hidden">
+                <button class="load-more-btn" id="loadMoreBtn">Load More</button>
+            </div>
+        </div>
+
+        <div id="profile-page" class="page-content hidden">
+            <div class="header">
+                <i class="fas fa-arrow-left" id="profileBackBtn" style="cursor:pointer;"></i>
+                <h2 style="margin-left: 15px; flex: 1;">Profile</h2>
+            </div>
+            <div class="profile-container">
+                <div class="profile-pic-wrapper">
+                    <img id="profPic" class="big-prof-pic" src="">
+                    <label id="cam-label" for="fileInput" class="cam-icon">
+                        <i class="fas fa-camera"></i>
+                    </label>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; margin-top:15px;">
+                    <h3 id="profName" style="font-size: 22px;">Name</h3>
+                    <i id="edit-name-icon" class="fas fa-pen" style="margin-left: 10px; color:#8c442c; cursor:pointer;"></i>
+                </div>
+                
+                <div id="profile-actions-area">
+                    <button id="msg-btn-prof">Message</button>
+                    <button id="theme-toggle-btn" class="theme-btn">
+                        <i class="fas fa-moon"></i> <span>Dark Mode</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="profile-visitors-dashboard" class="visitors-section hidden">
+                <h4><i class="fas fa-eye"></i> Profile Visitors</h4>
+                <div id="visitors-list-container" class="visitors-list"></div>
+            </div>
+
+            <div id="user-posts-container"></div>
+        </div>
+
+        <div id="chat-toggle-btn">
+            <i class="fas fa-comment-dots"></i>
+        </div>
+    </div>
+
+    <div id="users-page" class="hidden">
+        <div class="header">
+            <i class="fas fa-arrow-left" id="chatListCloseBtn"></i>
+            <h2 style="margin-left: 15px; flex: 1;">Messages</h2>
+        </div>
+        <div id="users-list"></div>
+    </div>
+
+    <div id="inbox-page" class="hidden">
+        <div class="header">
+            <i class="fas fa-arrow-left" id="inboxCloseBtn"></i>
+            <img id="pPic" class="post-avatar" style="margin-left:15px; cursor:pointer;" src="">
+            <div style="margin-left:12px; flex:1;">
+                <h4 id="pName" style="font-size: 15px; cursor:pointer;">Name</h4>
+            </div>
+        </div>
+        <div id="chat-box"></div>
+        <div class="chat-footer">
+            <input type="text" id="messageInput" placeholder="Type a message...">
+            <button id="sendMessageBtn" style="background:transparent; border:none; color:#0084ff; font-size:22px;"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
