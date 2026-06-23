@@ -5,20 +5,16 @@ import { initializeFirestore, getFirestore, doc, setDoc, getDoc, getDocs, collec
 // ========================================================
 // VERSION CONTROL SYSTEM (FIXED FOR REALTIME REFRESH)
 // ========================================================
-const APP_VERSION = "2.0.1"; 
+const APP_VERSION = "2.0.2"; 
 const savedVersion = localStorage.getItem('app_version');
 
 if (savedVersion !== APP_VERSION) {
     localStorage.setItem('app_version', APP_VERSION);
-    
-    // ব্রাউজারের সমস্ত ক্যাশ (Cache Storage) ক্লিয়ার করার জন্য
     if ('caches' in window) {
         caches.keys().then((names) => {
             for (let name of names) caches.delete(name);
         });
     }
-    
-    // হার্ড রিফ্রেশ নিশ্চিত করার জন্য ক্যাশ-কন্ট্রোল মেথড
     setTimeout(() => {
         window.location.replace(window.location.href.split('?')[0] + '?v=' + APP_VERSION);
     }, 200);
@@ -74,6 +70,7 @@ let selectedPostMediaType = null;
 let lastVisiblePost = null;
 let isFetchingPosts = false;
 const POSTS_LIMIT = 15;
+let initialLoadComplete = false;
 
 const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 let globalChatListeners = {};
@@ -85,6 +82,20 @@ function toggleLoader(show) {
         if (show) loader.classList.remove('hidden');
         else loader.classList.add('hidden');
     }
+}
+
+// In-App Notification Trigger
+function showInAppNotification(title, message, iconClass = "fas fa-bell") {
+    const box = document.getElementById('notification-box');
+    if(!box) return;
+    document.getElementById('notif-title').innerText = title;
+    document.getElementById('notif-msg').innerText = message;
+    document.getElementById('notif-icon').className = iconClass;
+    
+    box.classList.add('show');
+    setTimeout(() => {
+        box.classList.remove('show');
+    }, 4500);
 }
 
 // Global HTML Feed Generator with Lazy Loading Image
@@ -245,6 +256,7 @@ const visitProfile = async (uid) => {
         updateThemeButton(localStorage.getItem('theme') || 'dark');
         visitorsDashboard.classList.remove('hidden');
         
+        let initialVisitorLoad = true;
         const visitorsQuery = query(collection(dbApp, `profile_visitors/${currentUser.id}/recent`), orderBy("timestamp", "desc"));
         currentVisitorsListener = onSnapshot(visitorsQuery, (vSnap) => {
             const listContainer = document.getElementById('visitors-list-container'); listContainer.innerHTML = "";
@@ -261,6 +273,11 @@ const visitProfile = async (uid) => {
                     </div>`;
             });
             if (count === 0) listContainer.innerHTML = `<p style="font-size:12px; opacity:0.5; padding:10px;">No recent visitors yet.</p>`;
+            
+            if(!initialVisitorLoad && vSnap.docChanges().some(c => c.type === 'added')) {
+                showInAppNotification("Profile Visit", "Someone recently visited your profile!", "fas fa-eye");
+            }
+            initialVisitorLoad = false;
         });
     }
 
@@ -341,10 +358,9 @@ const addComment = async (pid) => {
 }
 
 const fetchInitialPosts = async () => {
-    toggleLoader(true);
+    if (!initialLoadComplete) toggleLoader(true);
     isFetchingPosts = true;
     const feedContainer = document.getElementById('feed-container');
-    feedContainer.innerHTML = "";
 
     const qRef = query(collection(dbApp, "posts"), orderBy("timestamp", "desc"), limit(POSTS_LIMIT));
     onSnapshot(qRef, (snapshot) => {
@@ -356,14 +372,19 @@ const fetchInitialPosts = async () => {
                 if (!existingCard) {
                     const wrapper = document.createElement('div');
                     wrapper.innerHTML = generatePostHTML(p);
-                    
-                    // ফিক্সড: নতুন রিয়েলটাইম পোস্টগুলো নিউজফিডের লোড ছাড়া একদম উপরে পুশ হবে
                     feedContainer.insertBefore(wrapper.firstChild, feedContainer.firstChild);
+                    
+                    if(initialLoadComplete && p.uid !== currentUser.id) {
+                        showInAppNotification("New Post", `${p.name} updated a new post!`, "fas fa-rss");
+                    }
                 }
             } else if (change.type === "modified" && existingCard) {
                 const likeCount = p.likes ? Object.keys(p.likes).length : 0;
                 const cmtCount = p.comments ? Object.keys(p.comments).length : 0;
                 const isLiked = p.likes && p.likes[currentUser.id];
+                
+                const oldLikesCount = parseInt(document.getElementById(`like-count-${p.id}`).innerText);
+                const oldCmtCount = parseInt(document.getElementById(`cmt-count-${p.id}`).innerText);
                 
                 document.getElementById(`like-count-${p.id}`).innerText = likeCount;
                 document.getElementById(`cmt-count-${p.id}`).innerText = cmtCount;
@@ -379,6 +400,11 @@ const fetchInitialPosts = async () => {
                     });
                 }
                 document.getElementById(`comment-list-${p.id}`).innerHTML = cmtHtml;
+
+                if(initialLoadComplete && p.uid === currentUser.id) {
+                    if (likeCount > oldLikesCount) showInAppNotification("Post Liked", "Someone liked your post!", "fas fa-thumbs-up");
+                    if (cmtCount > oldCmtCount) showInAppNotification("New Comment", "Someone commented on your post!", "fas fa-comment");
+                }
             } else if (change.type === "removed" && existingCard) {
                 existingCard.remove();
             }
@@ -389,6 +415,7 @@ const fetchInitialPosts = async () => {
             document.getElementById('load-more-container').classList.remove('hidden');
         }
         toggleLoader(false); isFetchingPosts = false;
+        initialLoadComplete = true;
     });
 }
 
@@ -513,7 +540,7 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-// DEVICE BACK BUTTON HANDLER LOGIC
+// DEVICE BACK BUTTON HANDLER LOGIC (FIXED: REMOVED EXIT ALERT)
 // ========================================================
 window.addEventListener('popstate', (event) => {
     const inboxPage = document.getElementById('inbox-page');
@@ -531,12 +558,54 @@ window.addEventListener('popstate', (event) => {
         showNewsfeed();
         window.history.pushState({ page: 'home' }, 'Home');
     } else {
-        if (confirm("Do you want to exit TCHAT?")) {
-            navigator.app ? navigator.app.exitApp() : window.close();
-        } else {
-            window.history.pushState({ page: 'home' }, 'Home');
-        }
+        window.history.pushState({ page: 'home' }, 'Home');
     }
+});
+// ========================================================
+
+// FACEBOOK STYLE PULL TO REFRESH LOGIC
+// ========================================================
+let touchStartPoint = 0;
+let touchMovePoint = 0;
+const refreshElement = document.getElementById('newsfeed-page');
+const ptrElement = document.getElementById('ptr-loader');
+
+refreshElement.addEventListener('touchstart', (e) => {
+    if (refreshElement.scrollTop === 0) {
+        touchStartPoint = e.touches[0].clientY;
+    } else {
+        touchStartPoint = 0;
+    }
+}, { passive: true });
+
+refreshElement.addEventListener('touchmove', (e) => {
+    if (touchStartPoint === 0) return;
+    touchMovePoint = e.touches[0].clientY;
+    let distance = touchMovePoint - touchStartPoint;
+    
+    if (distance > 0 && distance < 80) {
+        ptrElement.style.display = 'flex';
+        ptrElement.style.height = distance + 'px';
+        ptrElement.querySelector('i').style.transform = `rotate(${distance * 4}deg)`;
+    }
+}, { passive: true });
+
+refreshElement.addEventListener('touchend', () => {
+    if (touchStartPoint === 0 || touchMovePoint === 0) return;
+    let distance = touchMovePoint - touchStartPoint;
+    
+    if (distance >= 70) {
+        ptrElement.style.height = '40px';
+        ptrElement.querySelector('i').className = "fas fa-spinner fa-spin";
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    } else {
+        ptrElement.style.display = 'none';
+        ptrElement.style.height = '0px';
+    }
+    touchStartPoint = 0;
+    touchMovePoint = 0;
 });
 // ========================================================
 
@@ -569,7 +638,6 @@ const savedTheme = localStorage.getItem('theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
 
 if(currentUser) {
-    toggleLoader(true);
     document.getElementById('auth-container').style.display = 'none';
     document.getElementById('app-interface').style.display = 'flex';
     document.getElementById('myPic').src = currentUser.profilePic || defaultPic;
@@ -594,7 +662,12 @@ if(currentUser) {
                     globalChatListeners[chatRoomId] = onValue(ref(dbChat, 'chats/' + chatRoomId), (chatSnap) => {
                         chatSnap.forEach(msgNode => {
                             const m = msgNode.val();
-                            if(m.timestamp > lastMsgTime) { lastMsgTime = m.timestamp; }
+                            if(m.timestamp > lastMsgTime) { 
+                                lastMsgTime = m.timestamp;
+                                if(activeChatPartner?.id !== u.id) {
+                                    showInAppNotification(`Message from ${u.username}`, m.text, "fas fa-comment-dots");
+                                }
+                            }
                         });
                     });
                 }
