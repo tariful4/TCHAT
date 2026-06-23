@@ -163,7 +163,7 @@ const register = async () => {
 
 const logout = () => { localStorage.clear(); location.reload(); }
 
-// Media Selector
+// Media Selector (Size limits applied strictly)
 const handlePostMediaSelect = (event) => {
     const file = event.target.files[0]; if (!file) return;
     if (file.size > 0.5 * 1024 * 1024) { alert("File size too large! Select under 500KB."); event.target.value = ""; return; }
@@ -259,7 +259,6 @@ const visitProfile = async (uid) => {
         toggleLoader(false);
     });
 
-    // হিস্ট্রি স্টেট পুশ করা যাতে ব্যাক বাটনে কাজ করে
     window.history.pushState({ page: 'profile' }, 'Profile');
 }
 
@@ -295,7 +294,6 @@ const toggleLike = async (pid) => {
     const isAlreadyLiked = likeBtn.classList.contains('liked');
     let currentCount = parseInt(likeCountEl.innerText);
 
-    // Instant UI Sync
     if (isAlreadyLiked) {
         likeBtn.classList.remove('liked');
         likeCountEl.innerText = currentCount - 1;
@@ -304,7 +302,6 @@ const toggleLike = async (pid) => {
         likeCountEl.innerText = currentCount + 1;
     }
 
-    // Network Sync in Background
     try {
         const postRef = doc(dbApp, "posts", pid); const snap = await getDoc(postRef);
         if(snap.exists()) {
@@ -313,7 +310,6 @@ const toggleLike = async (pid) => {
             await updateDoc(postRef, { likes: likes });
         }
     } catch(err) {
-        // Rollback UI State if sync fails
         if (isAlreadyLiked) { likeBtn.classList.add('liked'); likeCountEl.innerText = currentCount; }
         else { likeBtn.classList.remove('liked'); likeCountEl.innerText = currentCount; }
     }
@@ -340,10 +336,15 @@ const fetchInitialPosts = async () => {
         snapshot.docChanges().forEach((change) => {
             const p = change.doc.data(); p.id = change.doc.id;
             const existingCard = document.getElementById(`post-card-${p.id}`);
-            if (change.type === "added" && !existingCard) {
-                const wrapper = document.createElement('div');
-                wrapper.innerHTML = generatePostHTML(p);
-                feedContainer.insertBefore(wrapper.firstChild, feedContainer.firstChild);
+            
+            if (change.type === "added") {
+                if (!existingCard) {
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = generatePostHTML(p);
+                    
+                    // ফিক্সড: নতুন রিয়েলটাইম পোস্টগুলো নিউজফিডের লোড ছাড়া একদম উপরে পুশ হবে
+                    feedContainer.insertBefore(wrapper.firstChild, feedContainer.firstChild);
+                }
             } else if (change.type === "modified" && existingCard) {
                 const likeCount = p.likes ? Object.keys(p.likes).length : 0;
                 const cmtCount = p.comments ? Object.keys(p.comments).length : 0;
@@ -419,7 +420,6 @@ const openInbox = (user) => {
         box.scrollTop = box.scrollHeight; toggleLoader(false);
     });
 
-    // ইনবক্স এর জন্য হিস্ট্রি স্টেট
     window.history.pushState({ page: 'inbox' }, 'Inbox');
 }
 
@@ -498,7 +498,7 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-// DEVICE BACK BUTTON HANDLER LOGIC (NEW ADDED)
+// DEVICE BACK BUTTON HANDLER LOGIC
 // ========================================================
 window.addEventListener('popstate', (event) => {
     const inboxPage = document.getElementById('inbox-page');
@@ -516,7 +516,6 @@ window.addEventListener('popstate', (event) => {
         showNewsfeed();
         window.history.pushState({ page: 'home' }, 'Home');
     } else {
-        // ইউজার যদি হোম/নিউজফিডে থাকে, অ্যাপ ক্লোজ না করে কনফার্মেশন প্রম্পট দেখাবে
         if (confirm("Do you want to exit TCHAT?")) {
             navigator.app ? navigator.app.exitApp() : window.close();
         } else {
@@ -563,7 +562,6 @@ if(currentUser) {
     
     fetchInitialPosts();
 
-    // ইনিশিয়াল হোম স্টেট পুশ
     window.history.pushState({ page: 'home' }, 'Home');
 
     onSnapshot(collection(dbAuth, "users"), (snap) => {
