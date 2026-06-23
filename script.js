@@ -2,11 +2,26 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { initializeFirestore, getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, startAfter, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const APP_VERSION = "2.0.5"; 
+// ========================================================
+// VERSION CONTROL SYSTEM (FIXED FOR REALTIME REFRESH)
+// ========================================================
+const APP_VERSION = "2.0.6"; 
 const savedVersion = localStorage.getItem('app_version');
+
 if (savedVersion !== APP_VERSION) {
     localStorage.setItem('app_version', APP_VERSION);
-    window.location.reload(true); 
+    
+    // ব্রাউজারের সমস্ত ক্যাশ (Cache Storage) ক্লিয়ার করার জন্য
+    if ('caches' in window) {
+        caches.keys().then((names) => {
+            for (let name of names) caches.delete(name);
+        });
+    }
+    
+    // হার্ড রিফ্রেশ নিশ্চিত করার জন্য ক্যাশ-কন্ট্রোল মেথড
+    setTimeout(() => {
+        window.location.replace(window.location.href.split('?')[0] + '?v=' + APP_VERSION);
+    }, 200);
 }
 
 // ========================================================
