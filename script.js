@@ -5,7 +5,7 @@ import { initializeFirestore, getFirestore, doc, setDoc, getDoc, getDocs, collec
 // ========================================================
 // VERSION CONTROL SYSTEM (FIXED FOR REALTIME REFRESH)
 // ========================================================
-const APP_VERSION = "2.0.6"; 
+const APP_VERSION = "2.0.1"; 
 const savedVersion = localStorage.getItem('app_version');
 
 if (savedVersion !== APP_VERSION) {
