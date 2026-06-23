@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { initializeFirestore, getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, startAfter, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const APP_VERSION = "2.0.4"; 
+const APP_VERSION = "2.0.5"; 
 const savedVersion = localStorage.getItem('app_version');
 if (savedVersion !== APP_VERSION) {
     localStorage.setItem('app_version', APP_VERSION);
