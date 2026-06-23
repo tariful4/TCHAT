@@ -13,7 +13,7 @@
 
     <title>TCHAT</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=2.0.6">
+    <link rel="stylesheet" href="style.css?v=2.0.7">
 </head>
 <body>
 
@@ -21,6 +21,15 @@
         <div class="dots-loader">
             <div></div><div></div><div></div>
         </div>
+    </div>
+
+    <!-- In-App Notification Overlay Popup -->
+    <div id="notification-box" class="notification-popup">
+        <div class="notif-header">
+            <i id="notif-icon" class="fas fa-bell"></i>
+            <span id="notif-title">New Notice</span>
+        </div>
+        <div id="notif-msg" class="notif-body">You have received a notification</div>
     </div>
 
     <div id="auth-container">
@@ -48,6 +57,11 @@
         </div>
 
         <div id="newsfeed-page" class="page-content">
+            <!-- Facebook Pull to Refresh Loader -->
+            <div id="ptr-loader" class="ptr-loader-style">
+                <i class="fas fa-sync-alt"></i>
+            </div>
+
             <div class="create-post">
                 <div class="post-input-row">
                     <img id="postMyPic" class="post-avatar" src="">
@@ -134,6 +148,6 @@
         </div>
     </div>
 
-    <script type="module" src="script.js?v=2.0.1"></script>
+    <script type="module" src="script.js?v=2.0.2"></script>
 </body>
 </html>
