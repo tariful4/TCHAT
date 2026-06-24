@@ -41,6 +41,10 @@ const POSTS_LIMIT = 15;
 const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 let globalChatListeners = {};
 
+// নতুন ইনবক্স ফিল্টারিং ও ব্যাজের জন্য গ্লোবাল ভেরিয়েবল
+let allUsersData = [];
+let activeChatsMetadata = {};
+
 // Loader Toggle
 function toggleLoader(show) {
     const loader = document.getElementById('loader-overlay');
@@ -379,6 +383,41 @@ const loadMorePosts = async () => {
     toggleLoader(false); isFetchingPosts = false;
 };
 
+// চ্যাট লিস্ট ইন্টারফেস আপডেট ও সর্টিং মেথড
+function updateChatListUI() {
+    const list = document.getElementById('users-list');
+    list.innerHTML = "";
+
+    // চ্যাট করা আইডি গুলো সর্বশেষ মেসেজের টাইম অনুযায়ী সর্ট করা হচ্ছে (সবার আগে আসবে)
+    const sortedChats = Object.values(activeChatsMetadata)
+        .filter(chat => chat.hasMessages)
+        .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+
+    sortedChats.forEach(chat => {
+        const u = chat.userObj;
+        const div = document.createElement('div');
+        div.className = 'chat-item';
+        div.style.position = 'relative';
+        
+        // ইউজারের প্রোফাইলে ছোট লাল ব্যাজ (যদি আনরিড মেসেজ থাকে)
+        let badgeHtml = chat.unreadCount > 0 ? `<span class="user-chat-badge" style="background: red; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);">${chat.unreadCount}</span>` : '';
+        
+        div.innerHTML = `<img src="${u.profilePic || defaultPic}"><div><h4>${u.username}</h4><small>${chat.lastText || 'Tap to chat'}</small></div>${badgeHtml}`;
+        div.onclick = () => openInbox(u);
+        list.appendChild(div);
+    });
+
+    // মেইন মেসেজ আইকনে টোটাল লাল নোটিফিকেশন ব্যাজ সংখ্যা আপডেট
+    let totalUnread = Object.values(activeChatsMetadata).reduce((sum, chat) => sum + chat.unreadCount, 0);
+    const mainBadge = document.getElementById('main-chat-badge');
+    if (totalUnread > 0) {
+        mainBadge.innerText = totalUnread;
+        mainBadge.style.display = 'block';
+    } else {
+        mainBadge.style.display = 'none';
+    }
+}
+
 // Chat Engine Room
 const openInbox = (user) => {
     toggleLoader(true); activeChatPartner = user;
@@ -389,6 +428,14 @@ const openInbox = (user) => {
     document.getElementById('pPic').src = user.profilePic || defaultPic;
     
     const ids = [currentUser.id, user.id].sort(); currentChatId = ids[0] + '_' + ids[1];
+    
+    // মেসেজ রিড হিসেবে মার্ক করা
+    localStorage.setItem('last_read_' + currentChatId, Date.now());
+    if (activeChatsMetadata[currentChatId]) {
+        activeChatsMetadata[currentChatId].unreadCount = 0;
+        updateChatListUI();
+    }
+
     onValue(ref(dbChat, 'chats/'+currentChatId), (snap) => {
         const box = document.getElementById('chat-box'); box.innerHTML = "";
         snap.forEach(c => {
@@ -396,6 +443,12 @@ const openInbox = (user) => {
             box.innerHTML += `<div class="message-wrapper ${isSent?'sent':'received'}"><div class="message-bubble ${isSent?'sent':'received'}">${m.text}</div></div>`;
         });
         box.scrollTop = box.scrollHeight; toggleLoader(false);
+        
+        localStorage.setItem('last_read_' + currentChatId, Date.now());
+        if (activeChatsMetadata[currentChatId]) {
+            activeChatsMetadata[currentChatId].unreadCount = 0;
+            updateChatListUI();
+        }
     });
 
     window.history.pushState({ page: 'inbox' }, 'Inbox');
@@ -527,6 +580,21 @@ document.getElementById('edit-name-icon').addEventListener('click', changeName);
 document.getElementById('pPic').addEventListener('click', () => { if(activeChatPartner) visitProfile(activeChatPartner.id); });
 document.getElementById('pName').addEventListener('click', () => { if(activeChatPartner) visitProfile(activeChatPartner.id); });
 
+// রেজিস্ট্রেশন ইমেইল বা ফোন দিয়ে সার্চ করার ইভেন্ট লিসেনার
+document.getElementById('chat-search-btn').addEventListener('click', () => {
+    const queryStr = document.getElementById('chat-search-input').value.trim().toLowerCase();
+    if (!queryStr) return;
+    
+    // হুবহু ইমেইল বা ফোন নাম্বার ম্যাচ করানো হচ্ছে
+    const targetUser = allUsersData.find(u => u.emailPhone && u.emailPhone.toLowerCase() === queryStr);
+    if (targetUser) {
+        openInbox(targetUser);
+        document.getElementById('chat-search-input').value = "";
+    } else {
+        alert("No user found with this Email or Phone number!");
+    }
+});
+
 // App Init Trigger
 const savedTheme = localStorage.getItem('theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -542,23 +610,51 @@ if(currentUser) {
 
     window.history.pushState({ page: 'home' }, 'Home');
 
+    // ইনবক্স রিয়েলটাইম স্ন্যাপশট ও রিয়েলটাইম মেসেজ লিসেনার ট্রিপল হ্যান্ডলিং
     onSnapshot(collection(dbAuth, "users"), (snap) => {
-        const list = document.getElementById('users-list'); list.innerHTML = "";
+        allUsersData = [];
         snap.forEach(c => {
             const u = c.data();
             if(u.id !== currentUser.id) {
-                const div = document.createElement('div'); div.className = 'chat-item';
-                div.innerHTML = `<img src="${u.profilePic || defaultPic}"><div><h4>${u.username}</h4><small>Tap to chat</small></div>`;
-                div.onclick = () => openInbox(u); list.appendChild(div);
+                allUsersData.push(u);
 
                 const ids = [currentUser.id, u.id].sort(); const chatRoomId = ids[0] + '_' + ids[1];
                 if (!globalChatListeners[chatRoomId]) {
-                    let lastMsgTime = Date.now();
                     globalChatListeners[chatRoomId] = onValue(ref(dbChat, 'chats/' + chatRoomId), (chatSnap) => {
+                        let lastTimestamp = 0;
+                        let unreadCount = 0;
+                        let hasMessages = false;
+                        let lastText = "";
+
+                        let lastReadTime = parseInt(localStorage.getItem('last_read_' + chatRoomId) || '0');
+                        
+                        if (activeChatPartner && activeChatPartner.id === u.id) {
+                            lastReadTime = Date.now();
+                            localStorage.setItem('last_read_' + chatRoomId, lastReadTime);
+                        }
+
                         chatSnap.forEach(msgNode => {
                             const m = msgNode.val();
-                            if(m.timestamp > lastMsgTime) { lastMsgTime = m.timestamp; }
+                            hasMessages = true;
+                            if (m.timestamp > lastTimestamp) {
+                                lastTimestamp = m.timestamp;
+                                lastText = m.text;
+                            }
+                            if (m.sender !== currentUser.id && m.timestamp > lastReadTime) {
+                                unreadCount++;
+                            }
                         });
+
+                        activeChatsMetadata[chatRoomId] = {
+                            chatRoomId,
+                            lastTimestamp,
+                            unreadCount,
+                            hasMessages,
+                            lastText,
+                            userObj: u
+                        };
+
+                        updateChatListUI();
                     });
                 }
             }
