@@ -1,16 +1,13 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, startAfter, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // database.js থেকে instances গুলো ইমপোর্ট করা হলো
 import { dbAuth, dbApp, dbChat } from "./database.js";
-import { ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, startAfter, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // ========================================================
 // VERSION CONTROL SYSTEM
 // ========================================================
-const APP_VERSION = "2.0.1"; 
+const APP_VERSION = "2.0.2"; 
 const savedVersion = localStorage.getItem('app_version');
 
 if (savedVersion !== APP_VERSION) {
@@ -41,6 +38,7 @@ const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 let globalChatListeners = {};
 let allUsersData = [];
 let activeChatsMetadata = {};
+let currentActivePage = 'home'; // নিখুঁত নেভিগেশনের জন্য গ্লোবাল ট্র্যাক স্টেট
 
 // Loader Toggle
 function toggleLoader(show) {
@@ -91,7 +89,28 @@ function compressImage(base64Str, maxWidth = 600, maxHeight = 600) {
     });
 }
 
-// Navigation & Auth Flow Actions
+// Navigation View Helper
+function navigateToPage(pageName) {
+    currentActivePage = pageName;
+    document.getElementById('newsfeed-page').classList.add('hidden');
+    document.getElementById('load-more-container').classList.add('hidden');
+    document.getElementById('users-page').classList.add('hidden');
+    document.getElementById('inbox-page').classList.add('hidden');
+    document.getElementById('profile-page').classList.add('hidden');
+
+    if (pageName === 'home') {
+        document.getElementById('newsfeed-page').classList.remove('hidden');
+        if (lastVisiblePost) document.getElementById('load-more-container').classList.remove('hidden');
+    } else if (pageName === 'users') {
+        document.getElementById('users-page').classList.remove('hidden');
+    } else if (pageName === 'inbox') {
+        document.getElementById('inbox-page').classList.remove('hidden');
+    } else if (pageName === 'profile') {
+        document.getElementById('profile-page').classList.remove('hidden');
+    }
+}
+
+// Auth Actions
 const toggleAuth = (showReg) => {
     if(showReg) {
         document.getElementById('login-form').style.display = 'none';
@@ -170,7 +189,7 @@ const clearSelectedMedia = () => {
     const oldMedia = container.querySelector('img, video'); if (oldMedia) oldMedia.remove();
 };
 
-// Profile Sync Dashboard
+// Profile Dashboard
 const visitProfile = async (uid) => {
     toggleLoader(true);
     if(currentProfileListener) { currentProfileListener(); currentProfileListener = null; } 
@@ -180,11 +199,7 @@ const visitProfile = async (uid) => {
     if(!snap.exists()) { toggleLoader(false); return; }
     const userData = snap.data();
     
-    document.getElementById('newsfeed-page').classList.add('hidden');
-    document.getElementById('load-more-container').classList.add('hidden');
-    document.getElementById('users-page').classList.add('hidden');
-    document.getElementById('inbox-page').classList.add('hidden');
-    document.getElementById('profile-page').classList.remove('hidden');
+    navigateToPage('profile');
     
     document.getElementById('profPic').src = userData.profilePic || defaultPic;
     document.getElementById('profName').innerText = userData.username;
@@ -197,6 +212,22 @@ const visitProfile = async (uid) => {
     const themeBtn = document.getElementById('theme-toggle-btn');
     const visitorsDashboard = document.getElementById('profile-visitors-dashboard');
     
+    // ডিলিট অ্যাকাউন্ট বাটন তৈরি বা রিমুভ করা
+    let delAccBtn = document.getElementById('delete-account-btn');
+    if (isMe) {
+        if (!delAccBtn) {
+            delAccBtn = document.createElement('button');
+            delAccBtn.id = 'delete-account-btn';
+            delAccBtn.innerHTML = `<i class="fas fa-user-minus"></i> Delete Account`;
+            delAccBtn.style = "background: #d9534f; color: white; border: none; padding: 10px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-top: 15px; display: inline-flex; align-items: center; gap: 8px;";
+            delAccBtn.onclick = deleteAccountAction;
+            document.querySelector('.profile-info-card').appendChild(delAccBtn);
+        }
+        delAccBtn.style.display = 'inline-flex';
+    } else {
+        if (delAccBtn) delAccBtn.style.display = 'none';
+    }
+
     if(!isMe) {
         msgBtn.style.display = 'block'; msgBtn.onclick = () => openInbox(userData);
         themeBtn.style.display = 'none'; visitorsDashboard.classList.add('hidden');
@@ -241,14 +272,34 @@ const visitProfile = async (uid) => {
     window.history.pushState({ page: 'profile' }, 'Profile');
 }
 
+// অ্যাকাউন্ট ডিলিট করার অ্যাকশন লজিক
+const deleteAccountAction = async () => {
+    if (confirm("Are you absolutely sure you want to delete your account? This will erase your data and posts permanently!")) {
+        toggleLoader(true);
+        try {
+            // ১. ইউজারের করা সমস্ত পোস্ট ডিলিট করা
+            const qPosts = await getDocs(collection(dbApp, "posts"));
+            qPosts.forEach(async (postDoc) => {
+                if (postDoc.data().uid === currentUser.id) {
+                    await deleteDoc(doc(dbApp, "posts", postDoc.id));
+                }
+            });
+            // ২. ইউজার প্রোফাইল ক্রডেনশিয়াল ডিলিট করা
+            await deleteDoc(doc(dbAuth, "users", currentUser.id));
+            toggleLoader(false);
+            alert("Your account has been successfully deleted.");
+            logout();
+        } catch (err) {
+            toggleLoader(false);
+            alert("Error deleting account: " + err.message);
+        }
+    }
+};
+
 const showNewsfeed = () => {
     if(currentProfileListener) { currentProfileListener(); currentProfileListener = null; }
     if(currentVisitorsListener) { currentVisitorsListener(); currentVisitorsListener = null; }
-    document.getElementById('profile-page').classList.add('hidden');
-    document.getElementById('newsfeed-page').classList.remove('hidden');
-    if(lastVisiblePost) {
-        document.getElementById('load-more-container').classList.remove('hidden');
-    }
+    navigateToPage('home');
 }
 
 // Optimized Actions
@@ -264,7 +315,7 @@ const createPost = async () => {
     document.getElementById('postText').value = ""; clearSelectedMedia(); toggleLoader(false);
 }
 
-// Optimistic Update Implementation For Like System
+// Like Logic
 const toggleLike = async (pid) => {
     const likeBtn = document.getElementById(`like-btn-${pid}`);
     const likeCountEl = document.getElementById(`like-count-${pid}`);
@@ -304,7 +355,7 @@ const addComment = async (pid) => {
     }
 }
 
-// রিয়েলটাইম ফিড হ্যান্ডলিং (নতুন পোস্ট উপরে রাখার লজিক নিশ্চিত করা হয়েছে)
+// রিয়েলটাইম ফিড হ্যান্ডলিং (অটো রিফ্রেশ ছাড়া ডেটাবেসের নতুন ডাটা একদম উপরে রেন্ডার করার লজিক)
 const fetchInitialPosts = async () => {
     toggleLoader(true);
     isFetchingPosts = true;
@@ -366,7 +417,7 @@ const fetchInitialPosts = async () => {
 
         if (snapshot.docs.length > 0 && !lastVisiblePost) {
             lastVisiblePost = snapshot.docs[snapshot.docs.length - 1];
-            document.getElementById('load-more-container').classList.remove('hidden');
+            if (currentActivePage === 'home') document.getElementById('load-more-container').classList.remove('hidden');
         }
         toggleLoader(false); isFetchingPosts = false;
     });
@@ -396,7 +447,7 @@ const loadMorePosts = async () => {
     toggleLoader(false); isFetchingPosts = false;
 };
 
-// চ্যাট লিস্ট ইন্টারফেস আপডেট
+// চ্যাট লিস্ট ইন্টারফেস আপডেট ও লং-প্রেস ইভেন্ট বাইন্ডিং
 function updateChatListUI() {
     const list = document.getElementById('users-list');
     list.innerHTML = "";
@@ -410,30 +461,69 @@ function updateChatListUI() {
         const div = document.createElement('div');
         div.className = 'chat-item';
         div.style.position = 'relative';
+        div.setAttribute('data-chatroomid', chat.chatRoomId);
         
         let badgeHtml = chat.unreadCount > 0 ? `<span class="user-chat-badge" style="background: red; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);">${chat.unreadCount}</span>` : '';
         
         div.innerHTML = `<img src="${u.profilePic || defaultPic}"><div><h4>${u.username}</h4><small>${chat.lastText || 'Tap to chat'}</small></div>${badgeHtml}`;
+        
+        // ট্যাপ করলে ইনবক্স খুলবে
         div.onclick = () => openInbox(u);
+
+        // লং প্রেস (Hold) হ্যান্ডলার চ্যাট ও আইডি ডিলিট করার জন্য
+        let pressTimer;
+        div.addEventListener('touchstart', (e) => {
+            pressTimer = setTimeout(() => {
+                handleChatDeleteOption(chat.chatRoomId, u.username);
+            }, 2000); // ২ সেকেন্ড হোল্ড করে রাখলে ট্র্রিগার হবে
+        });
+        div.addEventListener('touchend', () => clearTimeout(pressTimer));
+        div.addEventListener('mousedown', () => {
+            pressTimer = setTimeout(() => {
+                handleChatDeleteOption(chat.chatRoomId, u.username);
+            }, 2000);
+        });
+        div.addEventListener('mouseup', () => clearTimeout(pressTimer));
+
         list.appendChild(div);
     });
 
     let totalUnread = Object.values(activeChatsMetadata).reduce((sum, chat) => sum + chat.unreadCount, 0);
     const mainBadge = document.getElementById('main-chat-badge');
-    if (totalUnread > 0) {
-        mainBadge.innerText = totalUnread;
-        mainBadge.style.display = 'block';
-    } else {
-        mainBadge.style.display = 'none';
+    if (mainBadge) {
+        if (totalUnread > 0) {
+            mainBadge.innerText = totalUnread;
+            mainBadge.style.display = 'block';
+        } else {
+            mainBadge.style.display = 'none';
+        }
     }
 }
 
-// Chat Engine Room
+// চ্যাট ডিলিট করার কনফিগারেশন পপআপ
+const handleChatDeleteOption = async (roomId, targetName) => {
+    if (confirm(`Do you want to delete all chat history with "${targetName}"? This action cannot be undone.`)) {
+        toggleLoader(true);
+        try {
+            await remove(ref(dbChat, 'chats/' + roomId));
+            if (activeChatsMetadata[roomId]) {
+                activeChatsMetadata[roomId].hasMessages = false;
+                activeChatsMetadata[roomId].lastText = "";
+            }
+            updateChatListUI();
+            toggleLoader(false);
+            alert("Chat deleted successfully.");
+        } catch (err) {
+            toggleLoader(false);
+            alert("Failed to delete chat: " + err.message);
+        }
+    }
+};
+
+// Chat Inbox Open System
 const openInbox = (user) => {
     toggleLoader(true); activeChatPartner = user;
-    document.getElementById('users-page').classList.add('hidden');
-    document.getElementById('profile-page').classList.add('hidden');
-    document.getElementById('inbox-page').classList.remove('hidden');
+    navigateToPage('inbox');
     document.getElementById('pName').innerText = user.username;
     document.getElementById('pPic').src = user.profilePic || defaultPic;
     
@@ -469,7 +559,19 @@ const sendMessage = async () => {
     input.value = "";
 }
 
-// User Actions
+// প্রোফাইল ও এক্টিভিটি সিঙ্ক লজিক (প্রোফাইল চেঞ্জ করলে সমস্ত পুরনো পোস্টে আপডেট হওয়া নিশ্চিত করা হয়েছে)
+const syncUserAllActivity = async (updatedName, updatedPic) => {
+    const q = await getDocs(collection(dbApp, "posts"));
+    q.forEach(async (postDoc) => {
+        if (postDoc.data().uid === currentUser.id) {
+            await updateDoc(doc(dbApp, "posts", postDoc.id), {
+                name: updatedName,
+                pic: updatedPic
+            });
+        }
+    });
+};
+
 const uploadPhoto = (event) => {
     const file = event.target.files[0]; if (!file) return;
     if (file.size > 0.5 * 1024 * 1024) { alert("File size too large! Select under 500KB."); return; }
@@ -478,6 +580,7 @@ const uploadPhoto = (event) => {
     reader.onload = async (e) => {
         const img = await compressImage(e.target.result, 300, 300);
         await updateDoc(doc(dbAuth, "users", currentUser.id), { profilePic: img });
+        await syncUserAllActivity(currentUser.username, img);
         currentUser.profilePic = img; localStorage.setItem('user', JSON.stringify(currentUser)); location.reload();
     };
     reader.readAsDataURL(file);
@@ -487,7 +590,8 @@ const changeName = async () => {
     const newName = prompt("Enter new name:", currentUser.username);
     if (newName && newName.trim() !== "") {
         toggleLoader(true);
-        await updateDoc(doc(dbAuth, "users", currentUser.id), { username: newName.trim() });
+        await updateDoc(doc(doc(dbAuth, "users", currentUser.id)), { username: newName.trim() });
+        await syncUserAllActivity(newName.trim(), currentUser.profilePic || defaultPic);
         currentUser.username = newName.trim(); localStorage.setItem('user', JSON.stringify(currentUser)); location.reload();
     }
 };
@@ -526,7 +630,7 @@ document.addEventListener('click', async (e) => {
             await deleteDoc(doc(dbApp, "posts", pid)); const el = document.getElementById(`post-card-${pid}`); if(el) el.remove();
         }
     }
-    if (e.target.getInnerHTML === 'fa-trash' || e.target.classList.contains('fa-trash')) {
+    if (e.target.classList.contains('fa-trash') || e.target.getAttribute('class') === 'fa-trash') {
         const pid = e.target.getAttribute('data-pid'); const cid = e.target.getAttribute('data-cid');
         if(pid && cid && confirm("Delete comment?")) {
             const postRef = doc(dbApp, "posts", pid); const snap = await getDoc(postRef);
@@ -538,28 +642,27 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-// DEVICE BACK BUTTON HANDLER LOGIC (ফিক্সড ও রিফ্যাক্টরড)
-// ========================================================
+// DEVICE BACK BUTTON HANDLER LOGIC (১০০% নিখুঁত ও রিফ্যাক্টর্ড করা হয়েছে)
+// =======================================================================
 window.addEventListener('popstate', (event) => {
-    const inboxPage = document.getElementById('inbox-page');
-    const usersPage = document.getElementById('users-page');
-    const profilePage = document.getElementById('profile-page');
-
-    if (!inboxPage.classList.contains('hidden')) {
-        inboxPage.classList.add('hidden');
-        document.getElementById('users-page').classList.remove('hidden');
+    if (currentActivePage === 'inbox') {
+        // ইনবক্স থেকে ব্যাক দিলে ডিরেক্ট চ্যাট লিস্ট পেজে আসবে
+        navigateToPage('users');
         activeChatPartner = null;
-    } else if (!usersPage.classList.contains('hidden')) {
-        usersPage.classList.add('hidden');
-    } else if (!profilePage.classList.contains('hidden')) {
+        window.history.pushState({ page: 'users' }, 'Users');
+    } else if (currentActivePage === 'users' || currentActivePage === 'profile') {
+        // চ্যাট লিস্ট বা প্রোফাইল পেজ থেকে ব্যাক দিলে মেইন হোমে ফিরে আসবে
         showNewsfeed();
-    } else {
+        window.history.pushState({ page: 'home' }, 'Home');
+    } else if (currentActivePage === 'home') {
         if (confirm("Do you want to exit TCHAT?")) {
             navigator.app ? navigator.app.exitApp() : window.close();
+        } else {
+            window.history.pushState({ page: 'home' }, 'Home');
         }
     }
 });
-// ========================================================
+// =======================================================================
 
 // Bind UI Static Listeners
 document.getElementById('toRegTxt').addEventListener('click', () => toggleAuth(true));
@@ -573,12 +676,18 @@ document.getElementById('createPostBtn').addEventListener('click', createPost);
 document.getElementById('myPic').addEventListener('click', () => visitProfile(currentUser.id));
 document.getElementById('postMyPic').addEventListener('click', () => visitProfile(currentUser.id));
 document.getElementById('feedHomeLink').addEventListener('click', showNewsfeed);
+
+// ব্যাক বাটনের ক্লিকেও নেভিগেশন হিস্ট্রি পুশ করা হলো
 document.getElementById('profileBackBtn').addEventListener('click', () => { window.history.back(); });
-document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
-document.getElementById('loadMoreBtn').addEventListener('click', loadMorePosts);
-document.getElementById('chat-toggle-btn').addEventListener('click', () => { document.getElementById('users-page').classList.remove('hidden'); window.history.pushState({ page: 'users' }, 'Users'); });
 document.getElementById('chatListCloseBtn').addEventListener('click', () => { window.history.back(); });
 document.getElementById('inboxCloseBtn').addEventListener('click', () => { window.history.back(); });
+
+document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+document.getElementById('loadMoreBtn').addEventListener('click', loadMorePosts);
+document.getElementById('chat-toggle-btn').addEventListener('click', () => { 
+    navigateToPage('users'); 
+    window.history.pushState({ page: 'users' }, 'Users'); 
+});
 document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
 document.getElementById('fileInput').addEventListener('change', uploadPhoto);
 document.getElementById('edit-name-icon').addEventListener('click', changeName);
@@ -611,6 +720,8 @@ if(currentUser) {
     
     fetchInitialPosts();
 
+    // অ্যাপ চালুর পর প্রথম স্টেট সেট করা হলো
+    currentActivePage = 'home';
     window.history.pushState({ page: 'home' }, 'Home');
 
     onSnapshot(collection(dbAuth, "users"), (snap) => {
