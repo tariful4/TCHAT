@@ -1,26 +1,25 @@
-import { ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { initializeFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, startAfter, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// database.js theke instances gulo import kora holo
+// database.js থেকে instances গুলো ইমপোর্ট করা হলো
 import { dbAuth, dbApp, dbChat } from "./database.js";
+import { ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, startAfter, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // ========================================================
-// VERSION CONTROL SYSTEM (FIXED FOR REALTIME REFRESH)
+// VERSION CONTROL SYSTEM
 // ========================================================
 const APP_VERSION = "2.0.1"; 
 const savedVersion = localStorage.getItem('app_version');
 
 if (savedVersion !== APP_VERSION) {
     localStorage.setItem('app_version', APP_VERSION);
-    
-    // ব্রাউজারের সমস্ত ক্যাশ (Cache Storage) ক্লিয়ার করার জন্য
     if ('caches' in window) {
         caches.keys().then((names) => {
             for (let name of names) caches.delete(name);
         });
     }
-    
-    // হার্ড রিফ্রেশ নিশ্চিত করার জন্য ক্যাশ-কন্ট্রোল মেথড
     setTimeout(() => {
         window.location.replace(window.location.href.split('?')[0] + '?v=' + APP_VERSION);
     }, 200);
@@ -40,8 +39,6 @@ const POSTS_LIMIT = 15;
 
 const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 let globalChatListeners = {};
-
-// নতুন ইনবক্স ফিল্টারিং ও ব্যাজের জন্য গ্লোবাল ভেরিয়েবল
 let allUsersData = [];
 let activeChatsMetadata = {};
 
@@ -54,7 +51,7 @@ function toggleLoader(show) {
     }
 }
 
-// Global HTML Feed Generator with Lazy Loading Image & Timestamp Tracking Attribute
+// Global HTML Feed Generator
 function generatePostHTML(p) {
     const likeCount = (p.likes && typeof p.likes === 'object') ? Object.keys(p.likes).length : 0;
     const cmtCount = (p.comments && typeof p.comments === 'object') ? Object.keys(p.comments).length : 0;
@@ -145,7 +142,7 @@ const register = async () => {
 
 const logout = () => { localStorage.clear(); location.reload(); }
 
-// Media Selector (Size limits applied strictly)
+// Media Selector
 const handlePostMediaSelect = (event) => {
     const file = event.target.files[0]; if (!file) return;
     if (file.size > 0.5 * 1024 * 1024) { alert("File size too large! Select under 500KB."); event.target.value = ""; return; }
@@ -307,13 +304,12 @@ const addComment = async (pid) => {
     }
 }
 
-// ফিক্সড: স্ক্রিন খালি হওয়া বা অতিরিক্ত লোড হওয়া ছাড়াই একদম নিখুঁত রিয়েলটাইম ফিড হ্যান্ডলিং
+// রিয়েলটাইম ফিড হ্যান্ডলিং (নতুন পোস্ট উপরে রাখার লজিক নিশ্চিত করা হয়েছে)
 const fetchInitialPosts = async () => {
     toggleLoader(true);
     isFetchingPosts = true;
     const feedContainer = document.getElementById('feed-container');
     
-    // প্রথম বার ইনিশিয়াল লোডের জন্য শুধুমাত্র কন্টেইনার একবার ক্লিয়ার হবে
     if(feedContainer.children.length === 0) {
         feedContainer.innerHTML = "";
     }
@@ -330,12 +326,11 @@ const fetchInitialPosts = async () => {
                     wrapper.innerHTML = generatePostHTML(p);
                     const newPostEl = wrapper.firstChild;
                     
-                    // নতুন বা পুরানো সমস্ত পোস্টকে নিখুঁতভাবে টাইমস্ট্যাম্প অনুযায়ী ফিডে সাজানো হচ্ছে (কোনো ইনভার্সন বা রিলোড ছাড়া)
                     const children = feedContainer.children;
                     let inserted = false;
                     for (let i = 0; i < children.length; i++) {
                         const childTime = parseInt(children[i].getAttribute('data-timestamp') || 0);
-                        if (p.timestamp > childTime) {
+                        if (parseInt(p.timestamp) > childTime) {
                             feedContainer.insertBefore(newPostEl, children[i]);
                             inserted = true;
                             break;
@@ -401,12 +396,11 @@ const loadMorePosts = async () => {
     toggleLoader(false); isFetchingPosts = false;
 };
 
-// চ্যাট লিস্ট ইন্টারফেস আপডেট ও সর্টিং মেথড
+// চ্যাট লিস্ট ইন্টারফেস আপডেট
 function updateChatListUI() {
     const list = document.getElementById('users-list');
     list.innerHTML = "";
 
-    // চ্যাট করা আইডি গুলো সর্বশেষ মেসেজের টাইম অনুযায়ী সর্ট করা হচ্ছে (সবার আগে আসবে)
     const sortedChats = Object.values(activeChatsMetadata)
         .filter(chat => chat.hasMessages)
         .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
@@ -417,7 +411,6 @@ function updateChatListUI() {
         div.className = 'chat-item';
         div.style.position = 'relative';
         
-        // ইউজারের প্রোফাইলে ছোট লাল ব্যাজ (যদি আনরিড মেসেজ থাকে)
         let badgeHtml = chat.unreadCount > 0 ? `<span class="user-chat-badge" style="background: red; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);">${chat.unreadCount}</span>` : '';
         
         div.innerHTML = `<img src="${u.profilePic || defaultPic}"><div><h4>${u.username}</h4><small>${chat.lastText || 'Tap to chat'}</small></div>${badgeHtml}`;
@@ -425,7 +418,6 @@ function updateChatListUI() {
         list.appendChild(div);
     });
 
-    // মেইন মেসেজ আইকনে টোটাল লাল নোটিফিকেশন ব্যাজ সংখ্যা আপডেট
     let totalUnread = Object.values(activeChatsMetadata).reduce((sum, chat) => sum + chat.unreadCount, 0);
     const mainBadge = document.getElementById('main-chat-badge');
     if (totalUnread > 0) {
@@ -447,7 +439,6 @@ const openInbox = (user) => {
     
     const ids = [currentUser.id, user.id].sort(); currentChatId = ids[0] + '_' + ids[1];
     
-    // মেসেজ রিড হিসেবে মার্ক করা
     localStorage.setItem('last_read_' + currentChatId, Date.now());
     if (activeChatsMetadata[currentChatId]) {
         activeChatsMetadata[currentChatId].unreadCount = 0;
@@ -514,7 +505,7 @@ function updateThemeButton(theme) {
     btn.innerHTML = theme === 'light' ? `<i class="fas fa-sun"></i> <span>Light Mode</span>` : `<i class="fas fa-moon"></i> <span>Dark Mode</span>`;
 }
 
-// Global Event Delegation for Dynamic Elements
+// Global Event Delegation
 document.addEventListener('click', async (e) => {
     if (e.target.classList.contains('profile-click') || e.target.classList.contains('visitor-name') || e.target.classList.contains('comment-user')) {
         const uid = e.target.getAttribute('data-uid'); if(uid) visitProfile(uid);
@@ -547,7 +538,7 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-// DEVICE BACK BUTTON HANDLER LOGIC
+// DEVICE BACK BUTTON HANDLER LOGIC (ফিক্সড ও রিফ্যাক্টরড)
 // ========================================================
 window.addEventListener('popstate', (event) => {
     const inboxPage = document.getElementById('inbox-page');
@@ -556,19 +547,15 @@ window.addEventListener('popstate', (event) => {
 
     if (!inboxPage.classList.contains('hidden')) {
         inboxPage.classList.add('hidden');
+        document.getElementById('users-page').classList.remove('hidden');
         activeChatPartner = null;
-        window.history.pushState({ page: 'home' }, 'Home');
     } else if (!usersPage.classList.contains('hidden')) {
         usersPage.classList.add('hidden');
-        window.history.pushState({ page: 'home' }, 'Home');
     } else if (!profilePage.classList.contains('hidden')) {
         showNewsfeed();
-        window.history.pushState({ page: 'home' }, 'Home');
     } else {
         if (confirm("Do you want to exit TCHAT?")) {
             navigator.app ? navigator.app.exitApp() : window.close();
-        } else {
-            window.history.pushState({ page: 'home' }, 'Home');
         }
     }
 });
@@ -586,24 +573,22 @@ document.getElementById('createPostBtn').addEventListener('click', createPost);
 document.getElementById('myPic').addEventListener('click', () => visitProfile(currentUser.id));
 document.getElementById('postMyPic').addEventListener('click', () => visitProfile(currentUser.id));
 document.getElementById('feedHomeLink').addEventListener('click', showNewsfeed);
-document.getElementById('profileBackBtn').addEventListener('click', () => { showNewsfeed(); window.history.back(); });
+document.getElementById('profileBackBtn').addEventListener('click', () => { window.history.back(); });
 document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
 document.getElementById('loadMoreBtn').addEventListener('click', loadMorePosts);
 document.getElementById('chat-toggle-btn').addEventListener('click', () => { document.getElementById('users-page').classList.remove('hidden'); window.history.pushState({ page: 'users' }, 'Users'); });
-document.getElementById('chatListCloseBtn').addEventListener('click', () => { document.getElementById('users-page').classList.add('hidden'); window.history.back(); });
-document.getElementById('inboxCloseBtn').addEventListener('click', () => { document.getElementById('inbox-page').classList.add('hidden'); activeChatPartner = null; window.history.back(); });
+document.getElementById('chatListCloseBtn').addEventListener('click', () => { window.history.back(); });
+document.getElementById('inboxCloseBtn').addEventListener('click', () => { window.history.back(); });
 document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
 document.getElementById('fileInput').addEventListener('change', uploadPhoto);
 document.getElementById('edit-name-icon').addEventListener('click', changeName);
 document.getElementById('pPic').addEventListener('click', () => { if(activeChatPartner) visitProfile(activeChatPartner.id); });
 document.getElementById('pName').addEventListener('click', () => { if(activeChatPartner) visitProfile(activeChatPartner.id); });
 
-// রেজিস্ট্রেশন ইমেইল বা ফোন দিয়ে সার্চ করার ইভেন্ট লিসেনার
 document.getElementById('chat-search-btn').addEventListener('click', () => {
     const queryStr = document.getElementById('chat-search-input').value.trim().toLowerCase();
     if (!queryStr) return;
     
-    // হুবহু ইমেইল বা ফোন নাম্বার ম্যাচ করানো হচ্ছে
     const targetUser = allUsersData.find(u => u.emailPhone && u.emailPhone.toLowerCase() === queryStr);
     if (targetUser) {
         openInbox(targetUser);
@@ -628,7 +613,6 @@ if(currentUser) {
 
     window.history.pushState({ page: 'home' }, 'Home');
 
-    // ইনবক্স রিয়েলটাইম স্ন্যাপশট ও রিয়েলটাইম মেসেজ লিসেনার ট্রিপল হ্যান্ডলিং
     onSnapshot(collection(dbAuth, "users"), (snap) => {
         allUsersData = [];
         snap.forEach(c => {
