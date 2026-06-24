@@ -110,8 +110,10 @@
             <div id="user-posts-container"></div>
         </div>
 
-        <div id="chat-toggle-btn">
+        <!-- Message Icon এ রেড নোটিফিকেশন ব্যাজ যুক্ত করা হয়েছে -->
+        <div id="chat-toggle-btn" style="position: relative;">
             <i class="fas fa-comment-dots"></i>
+            <span id="main-chat-badge" style="position: absolute; top: -5px; right: -5px; background: red; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 50%; display: none;">0</span>
         </div>
     </div>
 
@@ -119,6 +121,11 @@
         <div class="header">
             <i class="fas fa-arrow-left" id="chatListCloseBtn"></i>
             <h2 style="margin-left: 15px; flex: 1;">Messages</h2>
+        </div>
+        <!-- রেজিস্ট্রেশন করা ইমেইল বা ফোন দিয়ে সার্চ করার বক্স -->
+        <div style="padding: 10px; display: flex; gap: 5px; background: transparent;">
+            <input type="text" id="chat-search-input" placeholder="Search by Email or Phone..." style="flex: 1; padding: 10px; border: 1px solid #8c442c; border-radius: 20px; outline: none; background: transparent; color: inherit;">
+            <button id="chat-search-btn" style="padding: 10px 15px; background: #8c442c; color: white; border: none; border-radius: 20px; cursor: pointer;"><i class="fas fa-search"></i></button>
         </div>
         <div id="users-list"></div>
     </div>
