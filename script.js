@@ -54,7 +54,7 @@ function toggleLoader(show) {
     }
 }
 
-// Global HTML Feed Generator with Lazy Loading Image
+// Global HTML Feed Generator with Lazy Loading Image & Timestamp Tracking Attribute
 function generatePostHTML(p) {
     const likeCount = (p.likes && typeof p.likes === 'object') ? Object.keys(p.likes).length : 0;
     const cmtCount = (p.comments && typeof p.comments === 'object') ? Object.keys(p.comments).length : 0;
@@ -68,7 +68,7 @@ function generatePostHTML(p) {
     }
     let mediaMarkup = p.media ? (p.mediaType === 'video' ? `<div class="post-media-container"><video src="${p.media}" controls preload="metadata"></video></div>` : `<div class="post-media-container"><img src="${p.media}" loading="lazy"></div>`) : "";
 
-    return `<div class="post-card" id="post-card-${p.id}"><div class="post-header"><img src="${p.pic || defaultPic}" class="post-avatar profile-click" data-uid="${p.uid}"><div><div class="post-user profile-click" data-uid="${p.uid}">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn post-delete" data-pid="${p.id}"></i>` : ''}</div><div class="post-content">${p.text || ""}</div>${mediaMarkup}<div class="post-stats"><span><i class="fas fa-thumbs-up"></i> <span id="like-count-${p.id}">${likeCount}</span></span><span><span id="cmt-count-${p.id}">${cmtCount}</span> Comments</span></div><div class="post-actions"><span id="like-btn-${p.id}" class="like-toggle-action ${isLiked?'liked':''}" data-pid="${p.id}"><i class="fas fa-thumbs-up"></i> Like</span><span class="comment-toggle-action" data-pid="${p.id}"><i class="fas fa-comment"></i> Comment</span></div><div class="comment-section" id="comments-${p.id}"><div id="comment-list-${p.id}">${cmtHtml}</div><div class="comment-input-row"><input type="text" id="cmt-inp-${p.id}" placeholder="Write a comment..."><i class="fas fa-paper-plane comment-submit" data-pid="${p.id}" style="color:#8c442c; margin-top:5px; cursor:pointer;"></i></div></div></div>`;
+    return `<div class="post-card" id="post-card-${p.id}" data-timestamp="${p.timestamp}"><div class="post-header"><img src="${p.pic || defaultPic}" class="post-avatar profile-click" data-uid="${p.uid}"><div><div class="post-user profile-click" data-uid="${p.uid}">${p.name}</div><div class="post-time">${new Date(p.timestamp).toLocaleString()}</div></div>${p.uid === currentUser.id ? `<i class="fas fa-trash-alt del-btn post-delete" data-pid="${p.id}"></i>` : ''}</div><div class="post-content">${p.text || ""}</div>${mediaMarkup}<div class="post-stats"><span><i class="fas fa-thumbs-up"></i> <span id="like-count-${p.id}">${likeCount}</span></span><span><span id="cmt-count-${p.id}">${cmtCount}</span> Comments</span></div><div class="post-actions"><span id="like-btn-${p.id}" class="like-toggle-action ${isLiked?'liked':''}" data-pid="${p.id}"><i class="fas fa-thumbs-up"></i> Like</span><span class="comment-toggle-action" data-pid="${p.id}"><i class="fas fa-comment"></i> Comment</span></div><div class="comment-section" id="comments-${p.id}"><div id="comment-list-${p.id}">${cmtHtml}</div><div class="comment-input-row"><input type="text" id="cmt-inp-${p.id}" placeholder="Write a comment..."><i class="fas fa-paper-plane comment-submit" data-pid="${p.id}" style="color:#8c442c; margin-top:5px; cursor:pointer;"></i></div></div></div>`;
 }
 
 // Compress Image Logic
@@ -307,11 +307,16 @@ const addComment = async (pid) => {
     }
 }
 
+// ফিক্সড: স্ক্রিন খালি হওয়া বা অতিরিক্ত লোড হওয়া ছাড়াই একদম নিখুঁত রিয়েলটাইম ফিড হ্যান্ডলিং
 const fetchInitialPosts = async () => {
     toggleLoader(true);
     isFetchingPosts = true;
     const feedContainer = document.getElementById('feed-container');
-    feedContainer.innerHTML = "";
+    
+    // প্রথম বার ইনিশিয়াল লোডের জন্য শুধুমাত্র কন্টেইনার একবার ক্লিয়ার হবে
+    if(feedContainer.children.length === 0) {
+        feedContainer.innerHTML = "";
+    }
 
     const qRef = query(collection(dbApp, "posts"), orderBy("timestamp", "desc"), limit(POSTS_LIMIT));
     onSnapshot(qRef, (snapshot) => {
@@ -323,9 +328,22 @@ const fetchInitialPosts = async () => {
                 if (!existingCard) {
                     const wrapper = document.createElement('div');
                     wrapper.innerHTML = generatePostHTML(p);
+                    const newPostEl = wrapper.firstChild;
                     
-                    // ফিক্সড: নতুন রিয়েলটাইম পোস্টগুলো নিউজফিডের লোড ছাড়া একদম উপরে পুশ হবে
-                    feedContainer.insertBefore(wrapper.firstChild, feedContainer.firstChild);
+                    // নতুন বা পুরানো সমস্ত পোস্টকে নিখুঁতভাবে টাইমস্ট্যাম্প অনুযায়ী ফিডে সাজানো হচ্ছে (কোনো ইনভার্সন বা রিলোড ছাড়া)
+                    const children = feedContainer.children;
+                    let inserted = false;
+                    for (let i = 0; i < children.length; i++) {
+                        const childTime = parseInt(children[i].getAttribute('data-timestamp') || 0);
+                        if (p.timestamp > childTime) {
+                            feedContainer.insertBefore(newPostEl, children[i]);
+                            inserted = true;
+                            break;
+                        }
+                    }
+                    if (!inserted) {
+                        feedContainer.appendChild(newPostEl);
+                    }
                 }
             } else if (change.type === "modified" && existingCard) {
                 const likeCount = p.likes ? Object.keys(p.likes).length : 0;
