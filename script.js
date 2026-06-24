@@ -1,8 +1,9 @@
 import { ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { initializeFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, startAfter, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // database.js theke instances gulo import kora holo
-import { dbAuth, dbApp, dbChat } from "./database.js";
+import { dbAuth, dbApp, dbChat, auth } from "./database.js";
 
 // ========================================================
 // VERSION CONTROL SYSTEM (FIXED FOR REALTIME REFRESH)
@@ -101,20 +102,40 @@ const toggleAuth = (showReg) => {
     }
 }
 
+// Helper to check and format email input correctly
+const formatEmail = (input) => {
+    let email = input.trim();
+    if (!email.includes('@')) {
+        email = email + "@tchat.com"; 
+    }
+    return email;
+}
+
 const login = async () => {
     const ep = document.getElementById('loginEmailPhone').value.trim();
     const ps = document.getElementById('loginPass').value.trim();
     if(!ep || !ps) return;
     toggleLoader(true);
     try {
-        const querySnapshot = await getDocs(collection(dbAuth, "users"));
-        let found = null;
-        querySnapshot.forEach((doc) => {
-            if(doc.data().emailPhone === ep && doc.data().password === ps) found = doc.data();
-        });
-        if(found) { localStorage.setItem('user', JSON.stringify(found)); location.reload(); }
-        else { toggleLoader(false); alert("Invalid login!"); }
-    } catch(e) { toggleLoader(false); alert("Error logging in: " + e.message); }
+        const emailFormatted = formatEmail(ep);
+        const userCredential = await signInWithEmailAndPassword(auth, emailFormatted, ps);
+        const uid = userCredential.user.uid;
+        
+        // Fetch original user metadata from dbAuth Firestore
+        const userDoc = await getDoc(doc(dbAuth, "users", uid));
+        if(userDoc.exists()) {
+            localStorage.setItem('user', JSON.stringify(userDoc.data()));
+            location.reload();
+        } else {
+            // Backup object if firestore profile is missing
+            const fallbackUser = { id: uid, emailPhone: ep, username: ep.split('@')[0], profilePic: defaultPic };
+            localStorage.setItem('user', JSON.stringify(fallbackUser));
+            location.reload();
+        }
+    } catch(e) { 
+        toggleLoader(false); 
+        alert("Invalid login details! " + e.message); 
+    }
 }
 
 const register = async () => {
@@ -123,23 +144,30 @@ const register = async () => {
     if(!ep || !ps) { alert("Please enter both Email/Phone and Password!"); return; }
     toggleLoader(true);
     try {
-        const querySnapshot = await getDocs(collection(dbAuth, "users"));
-        let alreadyExists = false;
-        querySnapshot.forEach((doc) => {
-            if(doc.data().emailPhone === ep) alreadyExists = true;
-        });
-        if(alreadyExists) { toggleLoader(false); alert("This Email or Phone is already registered!"); return; }
+        const emailFormatted = formatEmail(ep);
+        const userCredential = await createUserWithEmailAndPassword(auth, emailFormatted, ps);
+        const id = userCredential.user.uid;
         
-        const id = 'user_' + Date.now();
         const user = { id, emailPhone: ep, username: ep.split('@')[0], password: ps, profilePic: defaultPic };
         await setDoc(doc(dbAuth, "users", id), user);
         localStorage.setItem('user', JSON.stringify(user));
         toggleLoader(false);
         location.reload();
-    } catch(e) { toggleLoader(false); alert("Error registering: " + e.message); }
+    } catch(e) { 
+        toggleLoader(false); 
+        alert("Error registering user: " + e.message); 
+    }
 }
 
-const logout = () => { localStorage.clear(); location.reload(); }
+const logout = async () => { 
+    try {
+        await signOut(auth);
+    } catch (e) {
+        console.error("Signout error: ", e);
+    }
+    localStorage.clear(); 
+    location.reload(); 
+}
 
 // Media Selector (Size limits applied strictly)
 const handlePostMediaSelect = (event) => {
