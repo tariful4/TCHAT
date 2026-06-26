@@ -41,6 +41,13 @@ const POSTS_LIMIT = 15;
 const defaultPic = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 let globalChatListeners = {};
 
+// Voice Recorder variables
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recordInterval = null;
+let recordSeconds = 0;
+
 // Loader Toggle
 function toggleLoader(show) {
     const loader = document.getElementById('loader-overlay');
@@ -393,7 +400,14 @@ const openInbox = (user) => {
         const box = document.getElementById('chat-box'); box.innerHTML = "";
         snap.forEach(c => {
             const m = c.val(); const isSent = m.sender === currentUser.id;
-            box.innerHTML += `<div class="message-wrapper ${isSent?'sent':'received'}"><div class="message-bubble ${isSent?'sent':'received'}">${m.text}</div></div>`;
+            
+            // যদি টাইপ voice হয়, তবে সুন্দর হাই-কোয়ালিটি অডিও প্লেয়ার রেন্ডার করবে
+            let msgContent = m.text;
+            if (m.type === 'voice') {
+                msgContent = `<audio src="${m.text}" controls style="max-width: 100%; border-radius: 20px; outline:none; height:40px;"></audio>`;
+            }
+            
+            box.innerHTML += `<div class="message-wrapper ${isSent?'sent':'received'}"><div class="message-bubble ${isSent?'sent':'received'}">${msgContent}</div></div>`;
         });
         box.scrollTop = box.scrollHeight; toggleLoader(false);
     });
@@ -403,9 +417,91 @@ const openInbox = (user) => {
 
 const sendMessage = async () => {
     const input = document.getElementById('messageInput'); if(!input.value.trim()) return;
-    await push(ref(dbChat, 'chats/'+currentChatId), { sender: currentUser.id, text: input.value, timestamp: Date.now() });
+    await push(ref(dbChat, 'chats/'+currentChatId), { sender: currentUser.id, text: input.value, type: 'text', timestamp: Date.now() });
     input.value = "";
 }
+
+// High Quality Voice Record & Handle System
+const handleVoiceRecording = async () => {
+    const micIcon = document.getElementById('micIcon');
+    const statusText = document.getElementById('recordingStatus');
+    const timerText = document.getElementById('recordTimer');
+
+    if (!isRecording) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Audio recording is not supported on this device/browser.");
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // উচ্চ মানের অডিওর জন্য নির্দিষ্ট অডিও বিট-রেট সেট করা হয়েছে
+            mediaRecorder = new MediaRecorder(stream, { audioBitsPerSecond: 128000 });
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                
+                // ফাইলের সাইজ চেক
+                if (audioBlob.size > 0.5 * 1024 * 1024) { 
+                    alert("Voice message too long! Must be under 500KB."); 
+                    return; 
+                }
+
+                toggleLoader(true);
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const base64Audio = reader.result;
+                    // Firebase-এ মেসেজ পুশ করা হচ্ছে
+                    await push(ref(dbChat, 'chats/' + currentChatId), {
+                        sender: currentUser.id,
+                        text: base64Audio,
+                        type: 'voice',
+                        timestamp: Date.now()
+                    });
+                    toggleLoader(false);
+                };
+                reader.readAsDataURL(audioBlob);
+
+                // স্ট্রিমের সমস্ত ট্র্যাক বন্ধ করা হচ্ছে ক্যামেরা/মাইক রিলিজ করতে
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            micIcon.className = "fas fa-stop";
+            micIcon.style.color = "#ff3b30";
+            statusText.style.display = "block";
+            
+            // টাইমার সেটআপ
+            recordSeconds = 0;
+            timerText.innerText = "0:00";
+            recordInterval = setInterval(() => {
+                recordSeconds++;
+                const mins = Math.floor(recordSeconds / 60);
+                const secs = recordSeconds % 60;
+                timerText.innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            }, 1000);
+
+        } catch (err) {
+            alert("Microphone access denied or error occurred: " + err.message);
+        }
+    } else {
+        // রেকর্ডিং বন্ধ করা হচ্ছে
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop();
+        }
+        clearInterval(recordInterval);
+        isRecording = false;
+        micIcon.className = "fas fa-microphone";
+        micIcon.style.color = "#8c442c";
+        statusText.style.display = "none";
+    }
+};
 
 // User Actions
 const uploadPhoto = (event) => {
@@ -522,6 +618,7 @@ document.getElementById('chat-toggle-btn').addEventListener('click', () => { doc
 document.getElementById('chatListCloseBtn').addEventListener('click', () => { document.getElementById('users-page').classList.add('hidden'); window.history.back(); });
 document.getElementById('inboxCloseBtn').addEventListener('click', () => { document.getElementById('inbox-page').classList.add('hidden'); activeChatPartner = null; window.history.back(); });
 document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
+document.getElementById('voiceRecordBtn').addEventListener('click', handleVoiceRecording); // রেকর্ড বাটনের লিসেনার
 document.getElementById('fileInput').addEventListener('change', uploadPhoto);
 document.getElementById('edit-name-icon').addEventListener('click', changeName);
 document.getElementById('pPic').addEventListener('click', () => { if(activeChatPartner) visitProfile(activeChatPartner.id); });
