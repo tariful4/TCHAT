@@ -13,14 +13,12 @@ const savedVersion = localStorage.getItem('app_version');
 if (savedVersion !== APP_VERSION) {
     localStorage.setItem('app_version', APP_VERSION);
     
-    // ব্রাউজারের সমস্ত ক্যাশ (Cache Storage) ক্লিয়ার করার জন্য
     if ('caches' in window) {
         caches.keys().then((names) => {
             for (let name of names) caches.delete(name);
         });
     }
     
-    // হার্ড রিফ্রেশ নিশ্চিত করার জন্য ক্যাশ-কন্ট্রোল মেথড
     setTimeout(() => {
         window.location.replace(window.location.href.split('?')[0] + '?v=' + APP_VERSION);
     }, 200);
@@ -148,7 +146,7 @@ const register = async () => {
 
 const logout = () => { localStorage.clear(); location.reload(); }
 
-// Media Selector (Size limits applied strictly)
+// Media Selector
 const handlePostMediaSelect = (event) => {
     const file = event.target.files[0]; if (!file) return;
     if (file.size > 0.5 * 1024 * 1024) { alert("File size too large! Select under 500KB."); event.target.value = ""; return; }
@@ -257,7 +255,6 @@ const showNewsfeed = () => {
     }
 }
 
-// Optimized Actions
 const createPost = async () => {
     const txt = document.getElementById('postText').value.trim();
     if(!txt && !selectedPostMediaRaw) return;
@@ -270,7 +267,6 @@ const createPost = async () => {
     document.getElementById('postText').value = ""; clearSelectedMedia(); toggleLoader(false);
 }
 
-// Optimistic Update Implementation For Like System
 const toggleLike = async (pid) => {
     const likeBtn = document.getElementById(`like-btn-${pid}`);
     const likeCountEl = document.getElementById(`like-count-${pid}`);
@@ -326,8 +322,6 @@ const fetchInitialPosts = async () => {
                 if (!existingCard) {
                     const wrapper = document.createElement('div');
                     wrapper.innerHTML = generatePostHTML(p);
-                    
-                    // ফিক্সড: নতুন রিয়েলটাইম পোস্টগুলো নিউজফিডের লোড ছাড়া একদম উপরে পুশ হবে
                     feedContainer.insertBefore(wrapper.firstChild, feedContainer.firstChild);
                 }
             } else if (change.type === "modified" && existingCard) {
@@ -401,7 +395,6 @@ const openInbox = (user) => {
         snap.forEach(c => {
             const m = c.val(); const isSent = m.sender === currentUser.id;
             
-            // যদি টাইপ voice হয়, তবে সুন্দর হাই-কোয়ালিটি অডিও প্লেয়ার রেন্ডার করবে
             let msgContent = m.text;
             if (m.type === 'voice') {
                 msgContent = `<audio src="${m.text}" controls style="max-width: 100%; border-radius: 20px; outline:none; height:40px;"></audio>`;
@@ -421,7 +414,7 @@ const sendMessage = async () => {
     input.value = "";
 }
 
-// High Quality Voice Record & Handle System
+// High Quality Voice Record & Handle System (FULLY FIXED WITH SUPPORTED MIMETYPES)
 const handleVoiceRecording = async () => {
     const micIcon = document.getElementById('micIcon');
     const statusText = document.getElementById('recordingStatus');
@@ -435,8 +428,18 @@ const handleVoiceRecording = async () => {
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            // উচ্চ মানের অডিওর জন্য নির্দিষ্ট অডিও বিট-রেট সেট করা হয়েছে
-            mediaRecorder = new MediaRecorder(stream, { audioBitsPerSecond: 128000 });
+            
+            // ব্রাউজারের সামঞ্জস্য অনুযায়ী সঠিক এবং উচ্চ মানের ফরম্যাট নির্ধারণ (ফিক্সড)
+            let options = { audioBitsPerSecond: 128000 };
+            if (MediaRecorder.isTypeSupported('audio/webm')) {
+                options.mimeType = 'audio/webm';
+            } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+                options.mimeType = 'audio/ogg';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                options.mimeType = 'audio/mp4';
+            }
+
+            mediaRecorder = new MediaRecorder(stream, options);
             audioChunks = [];
 
             mediaRecorder.ondataavailable = (event) => {
@@ -444,9 +447,12 @@ const handleVoiceRecording = async () => {
             };
 
             mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
                 
-                // ফাইলের সাইজ চেক
+                if (audioBlob.size === 0) {
+                    alert("Recording failed. Please try again.");
+                    return;
+                }
                 if (audioBlob.size > 0.5 * 1024 * 1024) { 
                     alert("Voice message too long! Must be under 500KB."); 
                     return; 
@@ -456,7 +462,6 @@ const handleVoiceRecording = async () => {
                 const reader = new FileReader();
                 reader.onloadend = async () => {
                     const base64Audio = reader.result;
-                    // Firebase-এ মেসেজ পুশ করা হচ্ছে
                     await push(ref(dbChat, 'chats/' + currentChatId), {
                         sender: currentUser.id,
                         text: base64Audio,
@@ -467,7 +472,6 @@ const handleVoiceRecording = async () => {
                 };
                 reader.readAsDataURL(audioBlob);
 
-                // স্ট্রিমের সমস্ত ট্র্যাক বন্ধ করা হচ্ছে ক্যামেরা/মাইক রিলিজ করতে
                 stream.getTracks().forEach(track => track.stop());
             };
 
@@ -477,7 +481,6 @@ const handleVoiceRecording = async () => {
             micIcon.style.color = "#ff3b30";
             statusText.style.display = "block";
             
-            // টাইমার সেটআপ
             recordSeconds = 0;
             timerText.innerText = "0:00";
             recordInterval = setInterval(() => {
@@ -491,7 +494,6 @@ const handleVoiceRecording = async () => {
             alert("Microphone access denied or error occurred: " + err.message);
         }
     } else {
-        // রেকর্ডিং বন্ধ করা হচ্ছে
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             mediaRecorder.stop();
         }
@@ -539,7 +541,7 @@ function updateThemeButton(theme) {
     btn.innerHTML = theme === 'light' ? `<i class="fas fa-sun"></i> <span>Light Mode</span>` : `<i class="fas fa-moon"></i> <span>Dark Mode</span>`;
 }
 
-// Global Event Delegation for Dynamic Elements
+// Global Event Delegation
 document.addEventListener('click', async (e) => {
     if (e.target.classList.contains('profile-click') || e.target.classList.contains('visitor-name') || e.target.classList.contains('comment-user')) {
         const uid = e.target.getAttribute('data-uid'); if(uid) visitProfile(uid);
@@ -573,7 +575,6 @@ document.addEventListener('click', async (e) => {
 });
 
 // DEVICE BACK BUTTON HANDLER LOGIC
-// ========================================================
 window.addEventListener('popstate', (event) => {
     const inboxPage = document.getElementById('inbox-page');
     const usersPage = document.getElementById('users-page');
@@ -597,7 +598,6 @@ window.addEventListener('popstate', (event) => {
         }
     }
 });
-// ========================================================
 
 // Bind UI Static Listeners
 document.getElementById('toRegTxt').addEventListener('click', () => toggleAuth(true));
@@ -618,7 +618,7 @@ document.getElementById('chat-toggle-btn').addEventListener('click', () => { doc
 document.getElementById('chatListCloseBtn').addEventListener('click', () => { document.getElementById('users-page').classList.add('hidden'); window.history.back(); });
 document.getElementById('inboxCloseBtn').addEventListener('click', () => { document.getElementById('inbox-page').classList.add('hidden'); activeChatPartner = null; window.history.back(); });
 document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
-document.getElementById('voiceRecordBtn').addEventListener('click', handleVoiceRecording); // রেকর্ড বাটনের লিসেনার
+document.getElementById('voiceRecordBtn').addEventListener('click', handleVoiceRecording); 
 document.getElementById('fileInput').addEventListener('change', uploadPhoto);
 document.getElementById('edit-name-icon').addEventListener('click', changeName);
 document.getElementById('pPic').addEventListener('click', () => { if(activeChatPartner) visitProfile(activeChatPartner.id); });
