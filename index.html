@@ -25,7 +25,6 @@
 
     <div id="auth-container">
         <div id="login-form" class="auth-card">
-            <!-- TCHAT লোগোর উপরে Download APK লিঙ্ক যুক্ত করা হলো -->
             <a href="tchat.apk" download style="display: block; color: #f5d020; font-size: 14px; font-weight: bold; text-decoration: none; margin-bottom: 10px;">
                 <i class="fas fa-download"></i> Download APK
             </a>
@@ -135,11 +134,10 @@
         <div class="chat-footer" style="position: relative; display: flex; align-items: center;">
             <input type="text" id="messageInput" placeholder="Type a message...">
             
-            <!-- হাই-কোয়ালিটি অডিও রেকর্ডিং এর নতুন বাটনসমূহ -->
             <button id="voiceRecordBtn" style="background:transparent; border:none; color:#8c442c; font-size:22px; margin: 0 8px; cursor: pointer; transition: transform 0.2s;">
                 <i class="fas fa-microphone" id="micIcon"></i>
             </button>
-            <span id="recordingStatus" style="display: none; color: #ff3b30; font-size: 12px; font-weight: bold; position: absolute; left: 15px; background: var(--bg-card, #fff); padding: 5px 10px; border-radius: 20px; box-shadow: 0 1px 5px rgba(0,0,0,0.1);">
+            <span id="recordingStatus" style="display: none; color: #ff3b30; font-size: 12px; font-weight: bold; position: absolute; left: 15px; background: var(--card-bg, #fff); padding: 5px 10px; border-radius: 20px; box-shadow: 0 1px 5px rgba(0,0,0,0.2); z-index: 10;">
                 🔴 Recording <span id="recordTimer">0:00</span>
             </span>
 
