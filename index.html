@@ -132,8 +132,17 @@
             </div>
         </div>
         <div id="chat-box"></div>
-        <div class="chat-footer">
+        <div class="chat-footer" style="position: relative; display: flex; align-items: center;">
             <input type="text" id="messageInput" placeholder="Type a message...">
+            
+            <!-- হাই-কোয়ালিটি অডিও রেকর্ডিং এর নতুন বাটনসমূহ -->
+            <button id="voiceRecordBtn" style="background:transparent; border:none; color:#8c442c; font-size:22px; margin: 0 8px; cursor: pointer; transition: transform 0.2s;">
+                <i class="fas fa-microphone" id="micIcon"></i>
+            </button>
+            <span id="recordingStatus" style="display: none; color: #ff3b30; font-size: 12px; font-weight: bold; position: absolute; left: 15px; background: var(--bg-card, #fff); padding: 5px 10px; border-radius: 20px; box-shadow: 0 1px 5px rgba(0,0,0,0.1);">
+                🔴 Recording <span id="recordTimer">0:00</span>
+            </span>
+
             <button id="sendMessageBtn" style="background:transparent; border:none; color:#0084ff; font-size:22px;"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
