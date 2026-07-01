@@ -1,1 +1,1 @@
-live [on](https://tariful4.github.io/TCHAT/
+Live on GitHub: https://tariful4.github.io/TCHAT/
